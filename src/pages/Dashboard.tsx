@@ -5,6 +5,7 @@ import { Clock, Briefcase, TrendingUp, Calendar } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/hooks/useAuth";
 
 interface TimesheetStats {
   totalHours: number;
@@ -15,6 +16,7 @@ interface TimesheetStats {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { user, role, loading } = useAuth();
   const [stats, setStats] = useState<TimesheetStats>({
     totalHours: 0,
     totalProjects: 0,
@@ -24,19 +26,17 @@ export default function Dashboard() {
   const [recentEntries, setRecentEntries] = useState<any[]>([]);
 
   useEffect(() => {
-    checkUser();
-    fetchStats();
-    fetchRecentEntries();
-  }, []);
-
-  const checkUser = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
+    if (!loading && !user) {
       navigate("/auth");
     }
-  };
+  }, [user, loading, navigate]);
+
+  useEffect(() => {
+    if (user) {
+      fetchStats();
+      fetchRecentEntries();
+    }
+  }, [user]);
 
   const fetchStats = async () => {
     try {
@@ -57,7 +57,7 @@ export default function Dashboard() {
         const weekAgo = new Date();
         weekAgo.setDate(weekAgo.getDate() - 7);
         const thisWeekEntries = timesheets.filter(
-          (entry) => new Date(entry.date) >= weekAgo
+          (entry) => new Date(entry.start_date) >= weekAgo
         );
         const thisWeekHours = thisWeekEntries.reduce(
           (sum, entry) => sum + Number(entry.hours),
@@ -91,6 +91,14 @@ export default function Dashboard() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -99,7 +107,9 @@ export default function Dashboard() {
         <div className="mb-8 animate-fade-in">
           <h1 className="text-4xl font-bold mb-2 gradient-text">Welcome Back!</h1>
           <p className="text-muted-foreground">
-            Here's an overview of your timesheet activity
+            {role === "admin"
+              ? "Admin Dashboard - Manage all timesheets and view analytics"
+              : "Here's an overview of your timesheet activity"}
           </p>
         </div>
 
@@ -159,7 +169,7 @@ export default function Dashboard() {
                         {parseFloat(entry.hours).toFixed(1)}h
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {new Date(entry.date).toLocaleDateString()}
+                        {new Date(entry.start_date).toLocaleDateString()} - {new Date(entry.end_date).toLocaleDateString()}
                       </p>
                     </div>
                   </div>

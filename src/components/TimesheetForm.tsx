@@ -23,7 +23,11 @@ const formSchema = z.object({
   hours: z.string().refine((val) => !isNaN(Number(val)) && Number(val) > 0 && Number(val) <= 24, {
     message: "Hours must be between 0 and 24",
   }),
-  date: z.string().min(1, "Date is required"),
+  start_date: z.string().min(1, "Start date is required"),
+  end_date: z.string().min(1, "End date is required"),
+}).refine((data) => new Date(data.end_date) >= new Date(data.start_date), {
+  message: "End date must be after or equal to start date",
+  path: ["end_date"],
 });
 
 interface TimesheetFormProps {
@@ -33,6 +37,8 @@ interface TimesheetFormProps {
 export const TimesheetForm = ({ onSuccess }: TimesheetFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const today = new Date().toISOString().split("T")[0];
+  
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -40,7 +46,8 @@ export const TimesheetForm = ({ onSuccess }: TimesheetFormProps) => {
       employee_id: "",
       project: "",
       hours: "",
-      date: new Date().toISOString().split("T")[0],
+      start_date: today,
+      end_date: today,
     },
   });
 
@@ -63,7 +70,8 @@ export const TimesheetForm = ({ onSuccess }: TimesheetFormProps) => {
           employee_id: values.employee_id,
           project: values.project,
           hours: parseFloat(values.hours),
-          date: values.date,
+          start_date: values.start_date,
+          end_date: values.end_date,
         },
       ]);
 
@@ -142,10 +150,24 @@ export const TimesheetForm = ({ onSuccess }: TimesheetFormProps) => {
 
           <FormField
             control={form.control}
-            name="date"
+            name="start_date"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Date</FormLabel>
+                <FormLabel>Start Date</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="end_date"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>End Date</FormLabel>
                 <FormControl>
                   <Input type="date" {...field} />
                 </FormControl>

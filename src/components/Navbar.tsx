@@ -1,28 +1,35 @@
-import { Link, useLocation } from "react-router-dom";
-import { Moon, Sun, LogOut, Menu, X } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Moon, Sun, LogOut, Menu, X, BarChart3 } from "lucide-react";
 import { Button } from "./ui/button";
 import { useTheme } from "./ThemeProvider";
 import logo from "@/assets/logo.webp";
-import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 
 export const Navbar = () => {
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, role, signOut } = useAuth();
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await signOut();
     navigate("/auth");
   };
 
-  const navLinks = [
+  const userLinks = [
     { to: "/", label: "Dashboard" },
     { to: "/timesheet", label: "Timesheet" },
-    { to: "/reports", label: "Reports" },
   ];
+
+  const adminLinks = [
+    { to: "/", label: "Dashboard" },
+    { to: "/reports", label: "Reports" },
+    { to: "/analytics", label: "Analytics" },
+  ];
+
+  const navLinks = role === "admin" ? adminLinks : userLinks;
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -40,7 +47,7 @@ export const Navbar = () => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-1">
-            {navLinks.map((link) => (
+            {user && navLinks.map((link) => (
               <Link key={link.to} to={link.to}>
                 <Button
                   variant={isActive(link.to) ? "default" : "ghost"}
@@ -54,6 +61,13 @@ export const Navbar = () => {
 
           {/* Actions */}
           <div className="flex items-center space-x-2">
+            {role === "admin" && (
+              <span className="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                <BarChart3 className="w-3 h-3 mr-1" />
+                Admin
+              </span>
+            )}
+            
             <Button
               variant="ghost"
               size="icon"
@@ -67,14 +81,16 @@ export const Navbar = () => {
               )}
             </Button>
 
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleLogout}
-              className="hidden md:flex transition-transform hover:scale-105"
-            >
-              <LogOut className="h-5 w-5" />
-            </Button>
+            {user && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleLogout}
+                className="hidden md:flex transition-transform hover:scale-105"
+              >
+                <LogOut className="h-5 w-5" />
+              </Button>
+            )}
 
             {/* Mobile menu button */}
             <Button
@@ -91,7 +107,7 @@ export const Navbar = () => {
         {/* Mobile Navigation */}
         {mobileMenuOpen && (
           <div className="md:hidden py-4 space-y-2 animate-fade-in">
-            {navLinks.map((link) => (
+            {user && navLinks.map((link) => (
               <Link key={link.to} to={link.to} onClick={() => setMobileMenuOpen(false)}>
                 <Button
                   variant={isActive(link.to) ? "default" : "ghost"}
@@ -101,14 +117,16 @@ export const Navbar = () => {
                 </Button>
               </Link>
             ))}
-            <Button
-              variant="ghost"
-              onClick={handleLogout}
-              className="w-full justify-start"
-            >
-              <LogOut className="mr-2 h-5 w-5" />
-              Logout
-            </Button>
+            {user && (
+              <Button
+                variant="ghost"
+                onClick={handleLogout}
+                className="w-full justify-start"
+              >
+                <LogOut className="mr-2 h-5 w-5" />
+                Logout
+              </Button>
+            )}
           </div>
         )}
       </div>
