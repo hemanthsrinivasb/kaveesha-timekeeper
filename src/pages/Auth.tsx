@@ -17,7 +17,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import logo from "@/assets/logo.webp";
-import { Loader2 } from "lucide-react";
+import { Loader2, Moon, Sun } from "lucide-react";
+import { useTheme } from "@/components/ThemeProvider";
+import { useAuth } from "@/hooks/useAuth";
 
 const authSchema = z.object({
   email: z.string().email("Invalid email address").max(255),
@@ -26,6 +28,8 @@ const authSchema = z.object({
 
 export default function Auth() {
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
+  const { user, loading: authLoading } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -38,27 +42,10 @@ export default function Auth() {
   });
 
   useEffect(() => {
-    const checkUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
-        navigate("/");
-      }
-    };
-
-    checkUser();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session?.user) {
-        navigate("/");
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate]);
+    if (!authLoading && user) {
+      navigate("/");
+    }
+  }, [user, authLoading, navigate]);
 
   const onSubmit = async (values: z.infer<typeof authSchema>) => {
     setIsLoading(true);
@@ -69,7 +56,14 @@ export default function Auth() {
           password: values.password,
         });
 
-        if (error) throw error;
+        if (error) {
+          if (error.message.includes("Invalid login credentials")) {
+            toast.error("Invalid email or password. Please try again.");
+          } else {
+            toast.error(error.message);
+          }
+          return;
+        }
         toast.success("Logged in successfully!");
       } else {
         const { error } = await supabase.auth.signUp({
@@ -84,13 +78,13 @@ export default function Auth() {
           if (error.message.includes("User already registered")) {
             toast.error("This email is already registered. Please log in instead.");
           } else {
-            throw error;
+            toast.error(error.message);
           }
-        } else {
-          toast.success("Account created successfully! You can now log in.");
-          setIsLogin(true);
-          form.reset();
+          return;
         }
+        toast.success("Account created successfully! You can now log in.");
+        setIsLogin(true);
+        form.reset();
       }
     } catch (error: any) {
       console.error("Auth error:", error);
@@ -100,89 +94,115 @@ export default function Auth() {
     }
   };
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-secondary/20 p-4">
-      <Card className="w-full max-w-md shadow-glow animate-fade-in">
-        <CardHeader className="text-center space-y-4">
-          <div className="flex justify-center">
-            <img src={logo} alt="Kaveesha Technologies" className="h-16 w-16" />
-          </div>
-          <div>
-            <CardTitle className="text-2xl gradient-text">
-              Kaveesha Technologies
-            </CardTitle>
-            <CardDescription className="mt-2">
-              {isLogin ? "Welcome back! Please log in." : "Create your account"}
-            </CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="you@example.com"
-                        {...field}
-                        disabled={isLoading}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-background to-secondary/20">
+      {/* Theme Toggle */}
+      <div className="absolute top-4 right-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggleTheme}
+          className="rounded-full"
+        >
+          {theme === "dark" ? (
+            <Sun className="h-5 w-5" />
+          ) : (
+            <Moon className="h-5 w-5" />
+          )}
+        </Button>
+      </div>
 
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="••••••••"
-                        {...field}
-                        disabled={isLoading}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+      <div className="flex-1 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md shadow-glow animate-fade-in">
+          <CardHeader className="text-center space-y-4">
+            <div className="flex justify-center">
+              <img src={logo} alt="Kaveesha Technologies" className="h-16 w-16" />
+            </div>
+            <div>
+              <CardTitle className="text-2xl gradient-text">
+                Kaveesha Technologies
+              </CardTitle>
+              <CardDescription className="mt-2">
+                {isLogin ? "Welcome back! Please log in." : "Create your account"}
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="email"
+                          placeholder="you@example.com"
+                          {...field}
+                          disabled={isLoading}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {isLogin ? "Logging in..." : "Creating account..."}
-                  </>
-                ) : (
-                  <>{isLogin ? "Log In" : "Sign Up"}</>
-                )}
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="password"
+                          placeholder="••••••••"
+                          {...field}
+                          disabled={isLoading}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {isLogin ? "Logging in..." : "Creating account..."}
+                    </>
+                  ) : (
+                    <>{isLogin ? "Log In" : "Sign Up"}</>
+                  )}
+                </Button>
+              </form>
+            </Form>
+
+            <div className="mt-4 text-center">
+              <Button
+                variant="link"
+                onClick={() => setIsLogin(!isLogin)}
+                disabled={isLoading}
+              >
+                {isLogin
+                  ? "Don't have an account? Sign up"
+                  : "Already have an account? Log in"}
               </Button>
-            </form>
-          </Form>
-
-          <div className="mt-4 text-center">
-            <Button
-              variant="link"
-              onClick={() => setIsLogin(!isLogin)}
-              disabled={isLoading}
-            >
-              {isLogin
-                ? "Don't have an account? Sign up"
-                : "Already have an account? Log in"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
