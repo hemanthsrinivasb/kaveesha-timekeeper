@@ -115,30 +115,38 @@ export default function Dashboard() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatsCard
-            title="Total Hours"
-            value={stats.totalHours.toFixed(1)}
-            icon={Clock}
-            description="All time"
-          />
-          <StatsCard
-            title="Projects"
-            value={stats.totalProjects}
-            icon={Briefcase}
-            description="Unique projects"
-          />
-          <StatsCard
-            title="This Week"
-            value={stats.thisWeekHours.toFixed(1)}
-            icon={TrendingUp}
-            description="Hours logged"
-          />
-          <StatsCard
-            title="Total Entries"
-            value={stats.totalEntries}
-            icon={Calendar}
-            description="Timesheet records"
-          />
+          <div className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
+            <StatsCard
+              title="Total Hours"
+              value={stats.totalHours.toFixed(1)}
+              icon={Clock}
+              description="All time"
+            />
+          </div>
+          <div className="animate-slide-up" style={{ animationDelay: '0.2s' }}>
+            <StatsCard
+              title="Projects"
+              value={stats.totalProjects}
+              icon={Briefcase}
+              description="Unique projects"
+            />
+          </div>
+          <div className="animate-slide-up" style={{ animationDelay: '0.3s' }}>
+            <StatsCard
+              title="This Week"
+              value={stats.thisWeekHours.toFixed(1)}
+              icon={TrendingUp}
+              description="Hours logged"
+            />
+          </div>
+          <div className="animate-slide-up" style={{ animationDelay: '0.4s' }}>
+            <StatsCard
+              title="Total Entries"
+              value={stats.totalEntries}
+              icon={Calendar}
+              description="Timesheet records"
+            />
+          </div>
         </div>
 
         {/* Recent Entries */}
@@ -153,10 +161,10 @@ export default function Dashboard() {
               </p>
             ) : (
               <div className="space-y-4">
-                {recentEntries.map((entry) => (
+                {recentEntries.map((entry, index) => (
                   <div
                     key={entry.id}
-                    className="flex items-center justify-between p-4 rounded-lg border border-border hover:shadow-glow transition-all"
+                    className={`flex items-center justify-between p-4 rounded-lg border border-border hover:shadow-glow hover-lift transition-all row-animate stagger-${Math.min(index + 1, 5)}`}
                   >
                     <div>
                       <p className="font-medium">{entry.project}</p>
