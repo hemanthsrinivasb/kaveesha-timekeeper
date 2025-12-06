@@ -32,17 +32,23 @@ export default function Dashboard() {
   }, [user, loading, navigate]);
 
   useEffect(() => {
-    if (user) {
+    if (user && role !== undefined) {
       fetchStats();
       fetchRecentEntries();
     }
-  }, [user]);
+  }, [user, role]);
 
   const fetchStats = async () => {
     try {
-      const { data: timesheets, error } = await supabase
-        .from("timesheets")
-        .select("*");
+      // RLS handles access control, but we explicitly filter for defense in depth
+      let query = supabase.from("timesheets").select("*");
+      
+      // Non-admin users only see their own data (RLS enforces this, but we filter client-side too)
+      if (role !== 'admin' && user) {
+        query = query.eq('user_id', user.id);
+      }
+      
+      const { data: timesheets, error } = await query;
 
       if (error) throw error;
 
@@ -78,11 +84,19 @@ export default function Dashboard() {
 
   const fetchRecentEntries = async () => {
     try {
-      const { data, error } = await supabase
+      // RLS handles access control, but we explicitly filter for defense in depth
+      let query = supabase
         .from("timesheets")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(5);
+      
+      // Non-admin users only see their own data (RLS enforces this, but we filter client-side too)
+      if (role !== 'admin' && user) {
+        query = query.eq('user_id', user.id);
+      }
+      
+      const { data, error } = await query;
 
       if (error) throw error;
       setRecentEntries(data || []);
