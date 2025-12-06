@@ -10,10 +10,10 @@ interface StatsCardProps {
 
 export const StatsCard = ({ title, value, icon: Icon, description }: StatsCardProps) => {
   return (
-    <Card className="overflow-hidden transition-all hover:shadow-glow animate-fade-in">
+    <Card className="overflow-hidden hover-lift hover:shadow-glow transition-all duration-300 group">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <div className="h-10 w-10 rounded-lg gradient-primary flex items-center justify-center">
+        <div className="h-10 w-10 rounded-lg gradient-primary flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
           <Icon className="h-5 w-5 text-primary-foreground" />
         </div>
       </CardHeader>

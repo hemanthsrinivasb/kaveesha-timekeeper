@@ -195,11 +195,11 @@ export default function Reports() {
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <Button onClick={exportToExcel} className="gap-2">
+              <Button onClick={exportToExcel} className="gap-2 btn-press hover:shadow-lg transition-all duration-200">
                 <FileSpreadsheet className="h-4 w-4" />
                 Export to Excel
               </Button>
-              <Button onClick={exportToPDF} variant="secondary" className="gap-2">
+              <Button onClick={exportToPDF} variant="secondary" className="gap-2 btn-press hover:shadow-lg transition-all duration-200">
                 <FileText className="h-4 w-4" />
                 Export to PDF
               </Button>
@@ -231,10 +231,10 @@ export default function Reports() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredTimesheets.map((entry) => (
+                    {filteredTimesheets.map((entry, index) => (
                       <tr
                         key={entry.id}
-                        className="border-b border-border hover:bg-muted/50 transition-colors"
+                        className={`border-b border-border hover:bg-muted/50 transition-all duration-200 row-animate stagger-${Math.min(index % 5 + 1, 5)}`}
                       >
                         <td className="p-3">
                           {new Date(entry.start_date).toLocaleDateString()}
@@ -242,7 +242,7 @@ export default function Reports() {
                         <td className="p-3">
                           {new Date(entry.end_date).toLocaleDateString()}
                         </td>
-                        <td className="p-3">{entry.name}</td>
+                        <td className="p-3 font-medium">{entry.name}</td>
                         <td className="p-3">{entry.employee_id}</td>
                         <td className="p-3">{entry.project}</td>
                         <td className="p-3 text-right font-semibold text-primary">
@@ -253,7 +253,7 @@ export default function Reports() {
                             variant="ghost"
                             size="icon"
                             onClick={() => handleDelete(entry.id)}
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10 btn-press transition-all duration-200 hover:scale-110"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
