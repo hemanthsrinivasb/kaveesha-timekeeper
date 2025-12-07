@@ -23,14 +23,28 @@ import {
 import { StatsCard } from "@/components/StatsCard";
 import { Clock, Users, Briefcase, TrendingUp } from "lucide-react";
 
-interface TimesheetEntry {
-  id: string;
+interface Stats {
+  total_hours: number;
+  total_employees: number;
+  total_projects: number;
+  avg_hours_per_entry: number;
+  total_entries: number;
+}
+
+interface ProjectData {
   name: string;
-  employee_id: string;
-  project: string;
+  value: number;
+}
+
+interface EmployeeData {
+  name: string;
   hours: number;
-  start_date: string;
-  end_date: string;
+  entries: number;
+}
+
+interface WeeklyData {
+  week: string;
+  hours: number;
 }
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--secondary))", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6"];
@@ -38,16 +52,17 @@ const COLORS = ["hsl(var(--primary))", "hsl(var(--secondary))", "#10B981", "#F59
 export default function AdminAnalytics() {
   const navigate = useNavigate();
   const { user, role, loading } = useAuth();
-  const [timesheets, setTimesheets] = useState<TimesheetEntry[]>([]);
-  const [projectData, setProjectData] = useState<any[]>([]);
-  const [weeklyData, setWeeklyData] = useState<any[]>([]);
-  const [employeeData, setEmployeeData] = useState<any[]>([]);
-  const [stats, setStats] = useState({
-    totalHours: 0,
-    totalEmployees: 0,
-    totalProjects: 0,
-    avgHoursPerDay: 0,
+  const [stats, setStats] = useState<Stats>({
+    total_hours: 0,
+    total_employees: 0,
+    total_projects: 0,
+    avg_hours_per_entry: 0,
+    total_entries: 0,
   });
+  const [projectData, setProjectData] = useState<ProjectData[]>([]);
+  const [weeklyData, setWeeklyData] = useState<WeeklyData[]>([]);
+  const [employeeData, setEmployeeData] = useState<EmployeeData[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -61,96 +76,51 @@ export default function AdminAnalytics() {
 
   useEffect(() => {
     if (user && role === "admin") {
-      fetchTimesheets();
+      fetchAnalytics();
     }
   }, [user, role]);
 
-  const fetchTimesheets = async () => {
+  const fetchAnalytics = async () => {
+    setLoadingData(true);
     try {
-      const { data, error } = await supabase
-        .from("timesheets")
-        .select("*")
-        .order("start_date", { ascending: false });
+      // Fetch all analytics data in parallel using server-side RPC functions
+      const [statsResult, projectsResult, weeklyResult, employeesResult] = await Promise.all([
+        supabase.rpc("get_analytics_stats"),
+        supabase.rpc("get_project_distribution"),
+        supabase.rpc("get_weekly_trend"),
+        supabase.rpc("get_employee_productivity"),
+      ]);
 
-      if (error) throw error;
-      
-      if (data) {
-        setTimesheets(data);
-        processAnalytics(data);
+      if (statsResult.error) throw statsResult.error;
+      if (projectsResult.error) throw projectsResult.error;
+      if (weeklyResult.error) throw weeklyResult.error;
+      if (employeesResult.error) throw employeesResult.error;
+
+      // Set stats from server (cast to appropriate types)
+      if (statsResult.data) {
+        const data = statsResult.data as Record<string, unknown>;
+        setStats({
+          total_hours: Number(data.total_hours) || 0,
+          total_employees: Number(data.total_employees) || 0,
+          total_projects: Number(data.total_projects) || 0,
+          avg_hours_per_entry: Number(data.avg_hours_per_entry) || 0,
+          total_entries: Number(data.total_entries) || 0,
+        });
       }
+
+      // Set chart data (cast through unknown for type safety)
+      setProjectData((projectsResult.data as unknown as ProjectData[]) || []);
+      setWeeklyData((weeklyResult.data as unknown as WeeklyData[]) || []);
+      setEmployeeData((employeesResult.data as unknown as EmployeeData[]) || []);
     } catch (error) {
-      console.error("Error fetching timesheets:", error);
+      console.error("Error fetching analytics:", error);
       toast.error("Failed to load analytics data");
+    } finally {
+      setLoadingData(false);
     }
   };
 
-  const processAnalytics = (data: TimesheetEntry[]) => {
-    // Calculate stats
-    const totalHours = data.reduce((sum, entry) => sum + Number(entry.hours), 0);
-    const uniqueEmployees = new Set(data.map((entry) => entry.employee_id)).size;
-    const uniqueProjects = new Set(data.map((entry) => entry.project)).size;
-    const avgHoursPerDay = data.length > 0 ? totalHours / data.length : 0;
-
-    setStats({
-      totalHours,
-      totalEmployees: uniqueEmployees,
-      totalProjects: uniqueProjects,
-      avgHoursPerDay,
-    });
-
-    // Project distribution data
-    const projectHours: { [key: string]: number } = {};
-    data.forEach((entry) => {
-      projectHours[entry.project] = (projectHours[entry.project] || 0) + Number(entry.hours);
-    });
-    setProjectData(
-      Object.entries(projectHours).map(([name, value]) => ({ name, value: Number(value.toFixed(1)) }))
-    );
-
-    // Weekly trend data (last 8 weeks)
-    const weeklyHours: { [key: string]: number } = {};
-    const today = new Date();
-    for (let i = 7; i >= 0; i--) {
-      const weekStart = new Date(today);
-      weekStart.setDate(today.getDate() - i * 7);
-      const weekKey = `Week ${8 - i}`;
-      weeklyHours[weekKey] = 0;
-    }
-
-    data.forEach((entry) => {
-      const entryDate = new Date(entry.start_date);
-      const weeksAgo = Math.floor((today.getTime() - entryDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
-      if (weeksAgo >= 0 && weeksAgo < 8) {
-        const weekKey = `Week ${8 - weeksAgo}`;
-        weeklyHours[weekKey] = (weeklyHours[weekKey] || 0) + Number(entry.hours);
-      }
-    });
-    setWeeklyData(
-      Object.entries(weeklyHours).map(([week, hours]) => ({ week, hours: Number(hours.toFixed(1)) }))
-    );
-
-    // Employee productivity data
-    const employeeHours: { [key: string]: { name: string; hours: number; entries: number } } = {};
-    data.forEach((entry) => {
-      if (!employeeHours[entry.employee_id]) {
-        employeeHours[entry.employee_id] = { name: entry.name, hours: 0, entries: 0 };
-      }
-      employeeHours[entry.employee_id].hours += Number(entry.hours);
-      employeeHours[entry.employee_id].entries += 1;
-    });
-    setEmployeeData(
-      Object.entries(employeeHours)
-        .map(([id, data]) => ({
-          name: data.name,
-          hours: Number(data.hours.toFixed(1)),
-          entries: data.entries,
-        }))
-        .sort((a, b) => b.hours - a.hours)
-        .slice(0, 10)
-    );
-  };
-
-  if (loading) {
+  if (loading || loadingData) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -177,25 +147,25 @@ export default function AdminAnalytics() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <StatsCard
             title="Total Hours"
-            value={stats.totalHours.toFixed(1)}
+            value={stats.total_hours.toFixed(1)}
             icon={Clock}
             description="All time logged"
           />
           <StatsCard
             title="Employees"
-            value={stats.totalEmployees}
+            value={stats.total_employees}
             icon={Users}
             description="Active team members"
           />
           <StatsCard
             title="Projects"
-            value={stats.totalProjects}
+            value={stats.total_projects}
             icon={Briefcase}
             description="Active projects"
           />
           <StatsCard
             title="Avg Hours/Entry"
-            value={stats.avgHoursPerDay.toFixed(1)}
+            value={stats.avg_hours_per_entry.toFixed(1)}
             icon={TrendingUp}
             description="Per timesheet entry"
           />
