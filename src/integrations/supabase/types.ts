@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      projects: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       timesheets: {
         Row: {
           created_at: string
@@ -79,10 +106,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_analytics_stats: { Args: never; Returns: Json }
+      get_employee_productivity: { Args: never; Returns: Json }
+      get_project_distribution: { Args: never; Returns: Json }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      get_weekly_trend: { Args: never; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

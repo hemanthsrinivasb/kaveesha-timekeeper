@@ -15,11 +15,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
+import { ProjectSelect } from "./ProjectSelect";
 
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(100),
   employee_id: z.string().min(1, "Employee ID is required").max(50),
-  project: z.string().min(2, "Project name must be at least 2 characters").max(100),
+  project: z.string().min(1, "Please select a project"),
   hours: z.string().refine((val) => !isNaN(Number(val)) && Number(val) > 0 && Number(val) <= 24, {
     message: "Hours must be between 0 and 24",
   }),
@@ -66,8 +67,8 @@ export const TimesheetForm = ({ onSuccess }: TimesheetFormProps) => {
       const { error } = await supabase.from("timesheets").insert([
         {
           user_id: user.id,
-          name: values.name,
-          employee_id: values.employee_id,
+          name: values.name.trim(),
+          employee_id: values.employee_id.trim(),
           project: values.project,
           hours: parseFloat(values.hours),
           start_date: values.start_date,
@@ -127,7 +128,11 @@ export const TimesheetForm = ({ onSuccess }: TimesheetFormProps) => {
               <FormItem>
                 <FormLabel>Project</FormLabel>
                 <FormControl>
-                  <Input placeholder="Project Alpha" {...field} />
+                  <ProjectSelect
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    disabled={isSubmitting}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
