@@ -5,6 +5,7 @@ import { useTheme } from "./ThemeProvider";
 import logo from "@/assets/logo.webp";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { NotificationBell } from "./NotificationBell";
 
 export const Navbar = () => {
   const { theme, toggleTheme } = useTheme();
@@ -40,9 +41,9 @@ export const Navbar = () => {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-3 group">
-            <img src={logo} alt="Kaveesha Technologies" className="h-10 w-10 transition-transform group-hover:scale-105" />
-            <span className="hidden sm:block text-xl font-bold gradient-text">
-              Kaveesha Technologies
+            <img src={logo} alt="Kaveesha Engineers India PVT. LTD." className="h-10 w-10 transition-transform group-hover:scale-105" />
+            <span className="hidden sm:block text-lg font-bold gradient-text">
+              Kaveesha Engineers India PVT. LTD.
             </span>
           </Link>
 
@@ -68,6 +69,8 @@ export const Navbar = () => {
                 Admin
               </span>
             )}
+
+            {user && <NotificationBell />}
             
             <Button
               variant="ghost"

@@ -26,7 +26,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, Loader2, FolderOpen } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, FolderOpen, UserPlus } from "lucide-react";
+import { UserAssignment } from "@/components/UserAssignment";
 
 interface Project {
   id: string;
@@ -44,6 +45,8 @@ export default function Projects() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [selectedProjectForAssignment, setSelectedProjectForAssignment] = useState<Project | null>(null);
   
   // Form state
   const [name, setName] = useState("");
@@ -101,6 +104,11 @@ export default function Projects() {
     setDescription(project.description || "");
     setIsActive(project.is_active);
     setDialogOpen(true);
+  };
+
+  const openAssignDialog = (project: Project) => {
+    setSelectedProjectForAssignment(project);
+    setAssignDialogOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -316,6 +324,15 @@ export default function Projects() {
                             <Button
                               variant="ghost"
                               size="icon"
+                              onClick={() => openAssignDialog(project)}
+                              title="Assign users"
+                              className="text-primary hover:text-primary"
+                            >
+                              <UserPlus className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               onClick={() => openEditDialog(project)}
                               title="Edit project"
                             >
@@ -340,6 +357,16 @@ export default function Projects() {
             )}
           </CardContent>
         </Card>
+
+        {/* User Assignment Dialog */}
+        {selectedProjectForAssignment && (
+          <UserAssignment
+            project={selectedProjectForAssignment}
+            open={assignDialogOpen}
+            onOpenChange={setAssignDialogOpen}
+            onAssigned={fetchProjects}
+          />
+        )}
       </main>
     </div>
   );

@@ -124,11 +124,11 @@ export default function Auth() {
         <Card className="w-full max-w-md shadow-glow animate-fade-in">
           <CardHeader className="text-center space-y-4">
             <div className="flex justify-center">
-              <img src={logo} alt="Kaveesha Technologies" className="h-16 w-16" />
+              <img src={logo} alt="Kaveesha Engineers India PVT. LTD." className="h-16 w-16" />
             </div>
             <div>
-              <CardTitle className="text-2xl gradient-text">
-                Kaveesha Technologies
+              <CardTitle className="text-xl gradient-text">
+                Kaveesha Engineers India PVT. LTD.
               </CardTitle>
               <CardDescription className="mt-2">
                 {isLogin ? "Welcome back! Please log in." : "Create your account"}
