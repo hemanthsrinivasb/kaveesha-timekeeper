@@ -41,9 +41,9 @@ export const Navbar = () => {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-3 group">
-            <img src={logo} alt="Kaveesha Engineers India PVT. LTD." className="h-10 w-10 transition-transform group-hover:scale-105" />
+            <img src={logo} alt="Kaveesha Engineers Inda PVT. LTD." className="h-10 w-10 transition-transform group-hover:scale-105" />
             <span className="hidden sm:block text-lg font-bold gradient-text">
-              Kaveesha Engineers India PVT. LTD.
+              Kaveesha Engineers Inda PVT. LTD.
             </span>
           </Link>
 
