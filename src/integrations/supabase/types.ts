@@ -139,7 +139,11 @@ export type Database = {
           id: string
           name: string
           project: string
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
           start_date: string
+          status: string
           updated_at: string
           user_id: string
         }
@@ -151,7 +155,11 @@ export type Database = {
           id?: string
           name: string
           project: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           start_date: string
+          status?: string
           updated_at?: string
           user_id: string
         }
@@ -163,7 +171,11 @@ export type Database = {
           id?: string
           name?: string
           project?: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           start_date?: string
+          status?: string
           updated_at?: string
           user_id?: string
         }

@@ -5,12 +5,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { Download, FileSpreadsheet, FileText, Search, Trash2 } from "lucide-react";
+import { FileSpreadsheet, FileText, Search, Trash2, CheckCircle, XCircle, Clock } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { useAuth } from "@/hooks/useAuth";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+type TimesheetStatus = "pending" | "approved" | "rejected";
 
 export default function Reports() {
   const navigate = useNavigate();
@@ -20,6 +30,8 @@ export default function Reports() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStartDate, setFilterStartDate] = useState("");
   const [filterEndDate, setFilterEndDate] = useState("");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -39,14 +51,14 @@ export default function Reports() {
 
   useEffect(() => {
     filterTimesheets();
-  }, [searchTerm, filterStartDate, filterEndDate, timesheets]);
+  }, [searchTerm, filterStartDate, filterEndDate, filterStatus, timesheets]);
 
   const fetchTimesheets = async () => {
     try {
       const { data, error } = await supabase
         .from("timesheets")
         .select("*")
-        .order("start_date", { ascending: false });
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
       setTimesheets(data || []);
@@ -77,7 +89,53 @@ export default function Reports() {
       filtered = filtered.filter((entry) => entry.end_date <= filterEndDate);
     }
 
+    if (filterStatus !== "all") {
+      filtered = filtered.filter((entry) => entry.status === filterStatus);
+    }
+
     setFilteredTimesheets(filtered);
+  };
+
+  const handleStatusChange = async (id: string, userId: string, newStatus: TimesheetStatus, projectName: string) => {
+    if (!user) return;
+    
+    setProcessingId(id);
+    try {
+      // Update timesheet status
+      const { error: updateError } = await supabase
+        .from("timesheets")
+        .update({
+          status: newStatus,
+          reviewed_by: user.id,
+          reviewed_at: new Date().toISOString(),
+        })
+        .eq("id", id);
+
+      if (updateError) throw updateError;
+
+      // Create notification for user
+      const { error: notifError } = await supabase
+        .from("notifications")
+        .insert({
+          user_id: userId,
+          title: `Timesheet ${newStatus === "approved" ? "Approved" : "Rejected"}`,
+          message: `Your timesheet for "${projectName}" has been ${newStatus} by admin.`,
+          type: `timesheet_${newStatus}`,
+          metadata: { timesheet_id: id, status: newStatus },
+        });
+
+      if (notifError) {
+        console.error("Error creating notification:", notifError);
+      }
+
+      toast.success(`Timesheet ${newStatus} successfully`);
+      fetchTimesheets();
+    } catch (error) {
+      console.error("Error updating status:", error);
+      toast.error("Failed to update timesheet status");
+    } finally {
+      setProcessingId(null);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -94,6 +152,32 @@ export default function Reports() {
     }
   };
 
+  const getStatusBadge = (status: TimesheetStatus) => {
+    switch (status) {
+      case "approved":
+        return (
+          <Badge className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20">
+            <CheckCircle className="h-3 w-3 mr-1" />
+            Approved
+          </Badge>
+        );
+      case "rejected":
+        return (
+          <Badge className="bg-destructive/10 text-destructive border-destructive/20">
+            <XCircle className="h-3 w-3 mr-1" />
+            Rejected
+          </Badge>
+        );
+      default:
+        return (
+          <Badge className="bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20">
+            <Clock className="h-3 w-3 mr-1" />
+            Pending
+          </Badge>
+        );
+    }
+  };
+
   const exportToExcel = () => {
     const worksheet = XLSX.utils.json_to_sheet(
       filteredTimesheets.map((entry) => ({
@@ -103,6 +187,7 @@ export default function Reports() {
         "Employee ID": entry.employee_id,
         Project: entry.project,
         Hours: parseFloat(entry.hours).toFixed(2),
+        Status: entry.status.charAt(0).toUpperCase() + entry.status.slice(1),
       }))
     );
 
@@ -122,7 +207,7 @@ export default function Reports() {
 
     autoTable(doc, {
       startY: 40,
-      head: [["Start Date", "End Date", "Name", "Employee ID", "Project", "Hours"]],
+      head: [["Start Date", "End Date", "Name", "Employee ID", "Project", "Hours", "Status"]],
       body: filteredTimesheets.map((entry) => [
         new Date(entry.start_date).toLocaleDateString(),
         new Date(entry.end_date).toLocaleDateString(),
@@ -130,6 +215,7 @@ export default function Reports() {
         entry.employee_id,
         entry.project,
         parseFloat(entry.hours).toFixed(2),
+        entry.status.charAt(0).toUpperCase() + entry.status.slice(1),
       ]),
       theme: "grid",
       headStyles: { fillColor: [126, 58, 242] },
@@ -154,14 +240,21 @@ export default function Reports() {
     return null;
   }
 
+  const pendingCount = timesheets.filter(t => t.status === "pending").length;
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8 animate-fade-in">
-          <h1 className="text-4xl font-bold mb-2 gradient-text">Reports</h1>
+          <h1 className="text-4xl font-bold mb-2 gradient-text">Reports & Approvals</h1>
           <p className="text-muted-foreground">
-            View, filter, and export timesheet data
+            View, approve/reject, filter, and export timesheet data
+            {pendingCount > 0 && (
+              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-500/10 text-yellow-600 dark:text-yellow-400">
+                {pendingCount} pending approval
+              </span>
+            )}
           </p>
         </div>
 
@@ -169,11 +262,11 @@ export default function Reports() {
           <CardHeader>
             <CardTitle>Filters & Export</CardTitle>
             <CardDescription>
-              Search and filter entries, then export to Excel or PDF
+              Search, filter by status, then export to Excel or PDF
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -195,6 +288,17 @@ export default function Reports() {
                 value={filterEndDate}
                 onChange={(e) => setFilterEndDate(e.target.value)}
               />
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -213,6 +317,9 @@ export default function Reports() {
         <Card className="animate-slide-up">
           <CardHeader>
             <CardTitle>Timesheet Entries ({filteredTimesheets.length})</CardTitle>
+            <CardDescription>
+              Click approve or reject to update timesheet status. Users will be notified.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {filteredTimesheets.length === 0 ? (
@@ -224,12 +331,11 @@ export default function Reports() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border">
-                      <th className="text-left p-3 font-semibold">Start Date</th>
-                      <th className="text-left p-3 font-semibold">End Date</th>
-                      <th className="text-left p-3 font-semibold">Name</th>
-                      <th className="text-left p-3 font-semibold">Employee ID</th>
+                      <th className="text-left p-3 font-semibold">Dates</th>
+                      <th className="text-left p-3 font-semibold">Employee</th>
                       <th className="text-left p-3 font-semibold">Project</th>
                       <th className="text-right p-3 font-semibold">Hours</th>
+                      <th className="text-center p-3 font-semibold">Status</th>
                       <th className="text-center p-3 font-semibold">Actions</th>
                     </tr>
                   </thead>
@@ -240,26 +346,57 @@ export default function Reports() {
                         className={`border-b border-border hover:bg-muted/50 transition-all duration-200 row-animate stagger-${Math.min(index % 5 + 1, 5)}`}
                       >
                         <td className="p-3">
-                          {new Date(entry.start_date).toLocaleDateString()}
+                          <div className="text-sm">
+                            {new Date(entry.start_date).toLocaleDateString()}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            to {new Date(entry.end_date).toLocaleDateString()}
+                          </div>
                         </td>
                         <td className="p-3">
-                          {new Date(entry.end_date).toLocaleDateString()}
+                          <div className="font-medium">{entry.name}</div>
+                          <div className="text-xs text-muted-foreground">{entry.employee_id}</div>
                         </td>
-                        <td className="p-3 font-medium">{entry.name}</td>
-                        <td className="p-3">{entry.employee_id}</td>
                         <td className="p-3">{entry.project}</td>
                         <td className="p-3 text-right font-semibold text-primary">
                           {parseFloat(entry.hours).toFixed(1)}h
                         </td>
                         <td className="p-3 text-center">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(entry.id)}
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10 btn-press transition-all duration-200 hover:scale-110"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {getStatusBadge(entry.status)}
+                        </td>
+                        <td className="p-3">
+                          <div className="flex justify-center gap-1">
+                            {entry.status === "pending" && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleStatusChange(entry.id, entry.user_id, "approved", entry.project)}
+                                  disabled={processingId === entry.id}
+                                  className="text-green-600 hover:text-green-700 hover:bg-green-500/10 h-8 px-2"
+                                >
+                                  <CheckCircle className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleStatusChange(entry.id, entry.user_id, "rejected", entry.project)}
+                                  disabled={processingId === entry.id}
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 px-2"
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDelete(entry.id)}
+                              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 px-2"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}
