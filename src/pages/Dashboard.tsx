@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { StatsCard } from "@/components/StatsCard";
-import { Clock, Briefcase, TrendingUp, Calendar, FolderKanban } from "lucide-react";
+import { Clock, Briefcase, TrendingUp, Calendar, FolderKanban, CheckCircle, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -21,6 +21,8 @@ interface AssignedProject {
   description: string | null;
   assigned_at: string;
 }
+
+type TimesheetStatus = "pending" | "approved" | "rejected";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -142,6 +144,32 @@ export default function Dashboard() {
       setRecentEntries(data || []);
     } catch (error) {
       console.error("Error fetching recent entries:", error);
+    }
+  };
+
+  const getStatusBadge = (status: TimesheetStatus) => {
+    switch (status) {
+      case "approved":
+        return (
+          <Badge className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20 text-xs">
+            <CheckCircle className="h-3 w-3 mr-1" />
+            Approved
+          </Badge>
+        );
+      case "rejected":
+        return (
+          <Badge className="bg-destructive/10 text-destructive border-destructive/20 text-xs">
+            <XCircle className="h-3 w-3 mr-1" />
+            Rejected
+          </Badge>
+        );
+      default:
+        return (
+          <Badge className="bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20 text-xs">
+            <Clock className="h-3 w-3 mr-1" />
+            Pending
+          </Badge>
+        );
     }
   };
 
@@ -276,8 +304,11 @@ export default function Dashboard() {
                     key={entry.id}
                     className={`flex items-center justify-between p-4 rounded-lg border border-border hover:shadow-glow hover-lift transition-all row-animate stagger-${Math.min(index + 1, 5)}`}
                   >
-                    <div>
-                      <p className="font-medium">{entry.project}</p>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="font-medium">{entry.project}</p>
+                        {getStatusBadge(entry.status)}
+                      </div>
                       <p className="text-sm text-muted-foreground">
                         {entry.name} • {entry.employee_id}
                       </p>
