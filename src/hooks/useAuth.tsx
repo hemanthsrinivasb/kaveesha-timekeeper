@@ -41,6 +41,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error("Error fetching role:", error);
       setRole("user");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -75,21 +77,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
-    // Set up auth state listener
+    // Set up auth state listener - CRITICAL: No async operations in callback
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return;
       
       setSession(session);
       setUser(session?.user ?? null);
 
       if (session?.user) {
-        await fetchUserRole(session.user.id);
+        // Defer Supabase calls with setTimeout to prevent deadlock
+        setTimeout(() => {
+          fetchUserRole(session.user.id);
+        }, 0);
       } else {
         setRole(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     initializeAuth();

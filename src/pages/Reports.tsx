@@ -142,7 +142,10 @@ export default function Reports() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
+          <p className="text-muted-foreground animate-pulse">Loading reports...</p>
+        </div>
       </div>
     );
   }
@@ -266,6 +269,11 @@ export default function Reports() {
             )}
           </CardContent>
         </Card>
+
+        {/* Footer */}
+        <footer className="mt-12 pt-8 border-t border-border text-center text-sm text-muted-foreground">
+          <p>© {new Date().getFullYear()} Kaveesha Engineers Inda PVT. LTD. All rights reserved.</p>
+        </footer>
       </main>
     </div>
   );

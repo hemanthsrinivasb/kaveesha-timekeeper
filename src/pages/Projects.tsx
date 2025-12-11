@@ -173,7 +173,10 @@ export default function Projects() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
+          <p className="text-muted-foreground animate-pulse">Loading projects...</p>
+        </div>
       </div>
     );
   }
@@ -367,6 +370,11 @@ export default function Projects() {
             onAssigned={fetchProjects}
           />
         )}
+
+        {/* Footer */}
+        <footer className="mt-12 pt-8 border-t border-border text-center text-sm text-muted-foreground">
+          <p>© {new Date().getFullYear()} Kaveesha Engineers Inda PVT. LTD. All rights reserved.</p>
+        </footer>
       </main>
     </div>
   );
