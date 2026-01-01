@@ -13,9 +13,11 @@ import {
 import { Input } from "./ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
-import { useState } from "react";
+import { Loader2, User } from "lucide-react";
+import { useState, useEffect } from "react";
 import { ProjectSelect } from "./ProjectSelect";
+import { useProfile } from "@/hooks/useProfile";
+import { Alert, AlertDescription } from "./ui/alert";
 
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(100),
@@ -37,6 +39,7 @@ interface TimesheetFormProps {
 
 export const TimesheetForm = ({ onSuccess }: TimesheetFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { profile, loading: profileLoading, updateProfile } = useProfile();
 
   const today = new Date().toISOString().split("T")[0];
   
@@ -52,6 +55,20 @@ export const TimesheetForm = ({ onSuccess }: TimesheetFormProps) => {
     },
   });
 
+  // Auto-fill name and employee_id from profile
+  useEffect(() => {
+    if (profile) {
+      if (profile.display_name) {
+        form.setValue("name", profile.display_name);
+      }
+      if (profile.employee_id) {
+        form.setValue("employee_id", profile.employee_id);
+      }
+    }
+  }, [profile, form]);
+
+  const hasProfileData = profile?.display_name && profile?.employee_id;
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
     try {
@@ -62,6 +79,14 @@ export const TimesheetForm = ({ onSuccess }: TimesheetFormProps) => {
       if (!user) {
         toast.error("You must be logged in to submit a timesheet");
         return;
+      }
+
+      // Save name and employee_id to profile if not already saved
+      if (!profile?.display_name || !profile?.employee_id) {
+        await updateProfile({
+          display_name: values.name.trim(),
+          employee_id: values.employee_id.trim(),
+        });
       }
 
       const { error } = await supabase.from("timesheets").insert([
@@ -79,7 +104,14 @@ export const TimesheetForm = ({ onSuccess }: TimesheetFormProps) => {
       if (error) throw error;
 
       toast.success("Timesheet entry created successfully!");
-      form.reset();
+      form.reset({
+        name: values.name,
+        employee_id: values.employee_id,
+        project: "",
+        hours: "",
+        start_date: today,
+        end_date: today,
+      });
       if (onSuccess) onSuccess();
     } catch (error) {
       console.error("Error creating timesheet:", error);
@@ -92,6 +124,14 @@ export const TimesheetForm = ({ onSuccess }: TimesheetFormProps) => {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {hasProfileData && (
+          <Alert className="bg-primary/5 border-primary/20">
+            <User className="h-4 w-4" />
+            <AlertDescription>
+              Name and Employee ID auto-filled from your profile.
+            </AlertDescription>
+          </Alert>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <FormField
             control={form.control}
