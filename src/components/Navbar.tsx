@@ -6,6 +6,7 @@ import logo from "@/assets/logo.webp";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { NotificationBell } from "./NotificationBell";
+import { ProfileMenu } from "./ProfileMenu";
 
 export const Navbar = () => {
   const { theme, toggleTheme } = useTheme();
@@ -71,6 +72,7 @@ export const Navbar = () => {
             )}
 
             {user && <NotificationBell />}
+            {user && <ProfileMenu />}
             
             <Button
               variant="ghost"
