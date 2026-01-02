@@ -29,6 +29,7 @@ export const Navbar = () => {
     { to: "/", label: "Dashboard" },
     { to: "/reports", label: "Reports" },
     { to: "/analytics", label: "Analytics" },
+    { to: "/users", label: "Users" },
     { to: "/projects", label: "Projects" },
   ];
 

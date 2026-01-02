@@ -41,8 +41,8 @@ const signupSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters").max(100),
 });
 
-const forgotPasswordSchema = z.object({
-  email: z.string().email("Invalid email address").max(255),
+const resetPasswordSchema = z.object({
+  newPassword: z.string().min(6, "Password must be at least 6 characters").max(100),
 });
 
 export default function Auth() {
@@ -51,8 +51,8 @@ export default function Auth() {
   const { user, loading: authLoading } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
-  const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
 
   const loginForm = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
@@ -73,10 +73,10 @@ export default function Auth() {
     },
   });
 
-  const forgotPasswordForm = useForm<z.infer<typeof forgotPasswordSchema>>({
-    resolver: zodResolver(forgotPasswordSchema),
+  const resetPasswordForm = useForm<z.infer<typeof resetPasswordSchema>>({
+    resolver: zodResolver(resetPasswordSchema),
     defaultValues: {
-      email: "",
+      newPassword: "",
     },
   });
 
@@ -114,7 +114,8 @@ export default function Auth() {
   const onSignupSubmit = async (values: z.infer<typeof signupSchema>) => {
     setIsLoading(true);
     try {
-      const displayName = `${values.firstName} ${values.lastName}`;
+      // Use first name as the display name (username)
+      const displayName = values.firstName;
       
       const { data, error } = await supabase.auth.signUp({
         email: values.email,
@@ -165,11 +166,11 @@ export default function Auth() {
     }
   };
 
-  const onForgotPasswordSubmit = async (values: z.infer<typeof forgotPasswordSchema>) => {
-    setForgotPasswordLoading(true);
+  const onResetPasswordSubmit = async (values: z.infer<typeof resetPasswordSchema>) => {
+    setResetPasswordLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(values.email, {
-        redirectTo: `${window.location.origin}/auth`,
+      const { error } = await supabase.auth.updateUser({
+        password: values.newPassword,
       });
 
       if (error) {
@@ -177,14 +178,14 @@ export default function Auth() {
         return;
       }
 
-      toast.success("Password reset email sent! Check your inbox.");
-      setShowForgotPassword(false);
-      forgotPasswordForm.reset();
+      toast.success("Password updated successfully!");
+      setShowResetPassword(false);
+      resetPasswordForm.reset();
     } catch (error: any) {
-      console.error("Forgot password error:", error);
-      toast.error(error.message || "Failed to send reset email");
+      console.error("Reset password error:", error);
+      toast.error(error.message || "Failed to update password");
     } finally {
-      setForgotPasswordLoading(false);
+      setResetPasswordLoading(false);
     }
   };
 
@@ -276,7 +277,7 @@ export default function Auth() {
                       type="button"
                       variant="link"
                       className="p-0 h-auto text-sm text-muted-foreground hover:text-primary"
-                      onClick={() => setShowForgotPassword(true)}
+                      onClick={() => setShowResetPassword(true)}
                     >
                       Forgot Password?
                     </Button>
@@ -424,29 +425,29 @@ export default function Auth() {
         </Card>
       </div>
 
-      {/* Forgot Password Dialog */}
-      <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
+      {/* Reset Password Dialog */}
+      <Dialog open={showResetPassword} onOpenChange={setShowResetPassword}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Reset Password</DialogTitle>
             <DialogDescription>
-              Enter your email address and we'll send you a link to reset your password.
+              Enter your new password below.
             </DialogDescription>
           </DialogHeader>
-          <Form {...forgotPasswordForm}>
-            <form onSubmit={forgotPasswordForm.handleSubmit(onForgotPasswordSubmit)} className="space-y-4">
+          <Form {...resetPasswordForm}>
+            <form onSubmit={resetPasswordForm.handleSubmit(onResetPasswordSubmit)} className="space-y-4">
               <FormField
-                control={forgotPasswordForm.control}
-                name="email"
+                control={resetPasswordForm.control}
+                name="newPassword"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>New Password</FormLabel>
                     <FormControl>
                       <Input
-                        type="email"
-                        placeholder="you@example.com"
+                        type="password"
+                        placeholder="••••••••"
                         {...field}
-                        disabled={forgotPasswordLoading}
+                        disabled={resetPasswordLoading}
                       />
                     </FormControl>
                     <FormMessage />
@@ -457,19 +458,19 @@ export default function Auth() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setShowForgotPassword(false)}
-                  disabled={forgotPasswordLoading}
+                  onClick={() => setShowResetPassword(false)}
+                  disabled={resetPasswordLoading}
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={forgotPasswordLoading}>
-                  {forgotPasswordLoading ? (
+                <Button type="submit" disabled={resetPasswordLoading}>
+                  {resetPasswordLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Sending...
+                      Updating...
                     </>
                   ) : (
-                    "Send Reset Link"
+                    "Update Password"
                   )}
                 </Button>
               </div>

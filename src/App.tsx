@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import Timesheet from "./pages/Timesheet";
 import Reports from "./pages/Reports";
 import AdminAnalytics from "./pages/AdminAnalytics";
+import AdminUsers from "./pages/AdminUsers";
 import Projects from "./pages/Projects";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -30,6 +31,7 @@ const App = () => (
                 <Route path="/timesheet" element={<Timesheet />} />
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/analytics" element={<AdminAnalytics />} />
+                <Route path="/users" element={<AdminUsers />} />
                 <Route path="/projects" element={<Projects />} />
                 <Route path="/auth" element={<Auth />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
