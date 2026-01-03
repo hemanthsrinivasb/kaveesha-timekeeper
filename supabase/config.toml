@@ -1,1 +1,4 @@
 project_id = "jedfmilzabrfzbzesxdj"
+
+[functions.notify-missing-empid]
+verify_jwt = false

@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Moon, Sun, LogOut, Menu, X, BarChart3 } from "lucide-react";
 import { Button } from "./ui/button";
 import { useTheme } from "./ThemeProvider";
-import logo from "@/assets/logo.webp";
+import logo from "@/assets/kaveeshalogo.png";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { NotificationBell } from "./NotificationBell";
@@ -43,9 +43,9 @@ export const Navbar = () => {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-3 group">
-            <img src={logo} alt="Kaveesha Engineers Inda PVT. LTD." className="h-10 w-10 transition-transform group-hover:scale-105" />
+            <img src={logo} alt="Kaveesha Engineers India Pvt. Ltd." className="h-10 w-10 transition-transform group-hover:scale-105" />
             <span className="hidden sm:block text-lg font-bold gradient-text">
-              Kaveesha Engineers Inda PVT. LTD.
+              KAVEESHA ENGINEERS INDIA PRIVATE LIMITED
             </span>
           </Link>
 
