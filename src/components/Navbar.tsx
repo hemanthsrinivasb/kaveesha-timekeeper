@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Moon, Sun, LogOut, Menu, X, BarChart3 } from "lucide-react";
 import { Button } from "./ui/button";
 import { useTheme } from "./ThemeProvider";
-import logo from "@/assets/kaveeshalogo.png";
+import logo from "@/assets/kaveesha-logo.jpg";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { NotificationBell } from "./NotificationBell";
@@ -13,7 +13,7 @@ export const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, role, signOut } = useAuth();
+  const { user, role, isHod, signOut } = useAuth();
 
   const handleLogout = async () => {
     await signOut();
@@ -25,6 +25,12 @@ export const Navbar = () => {
     { to: "/timesheet", label: "Timesheet" },
   ];
 
+  const hodLinks = [
+    { to: "/", label: "Dashboard" },
+    { to: "/timesheet", label: "Timesheet" },
+    { to: "/reports", label: "Reports" },
+  ];
+
   const adminLinks = [
     { to: "/", label: "Dashboard" },
     { to: "/reports", label: "Reports" },
@@ -33,7 +39,7 @@ export const Navbar = () => {
     { to: "/projects", label: "Projects" },
   ];
 
-  const navLinks = role === "admin" ? adminLinks : userLinks;
+  const navLinks = role === "admin" ? adminLinks : (isHod ? hodLinks : userLinks);
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -69,6 +75,12 @@ export const Navbar = () => {
               <span className="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
                 <BarChart3 className="w-3 h-3 mr-1" />
                 Admin
+              </span>
+            )}
+            {isHod && role !== "admin" && (
+              <span className="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                <BarChart3 className="w-3 h-3 mr-1" />
+                HOD
               </span>
             )}
 

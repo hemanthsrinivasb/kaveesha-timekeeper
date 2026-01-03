@@ -24,41 +24,69 @@ type TimesheetStatus = "pending" | "approved" | "rejected";
 
 export default function Reports() {
   const navigate = useNavigate();
-  const { user, role, loading } = useAuth();
+  const { user, role, isHod, hodProjects, loading } = useAuth();
   const [timesheets, setTimesheets] = useState<any[]>([]);
   const [filteredTimesheets, setFilteredTimesheets] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStartDate, setFilterStartDate] = useState("");
   const [filterEndDate, setFilterEndDate] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterProject, setFilterProject] = useState<string>("all");
+  const [allProjects, setAllProjects] = useState<string[]>([]);
   const [processingId, setProcessingId] = useState<string | null>(null);
+
+  const isAdmin = role === "admin";
+  const canAccessReports = isAdmin || isHod;
 
   useEffect(() => {
     if (!loading && !user) {
       navigate("/auth");
     }
-    if (!loading && user && role !== "admin") {
-      toast.error("Access denied. Admin only.");
+    if (!loading && user && !canAccessReports) {
+      toast.error("Access denied. Admin or HOD only.");
       navigate("/");
     }
-  }, [user, role, loading, navigate]);
+  }, [user, role, isHod, loading, navigate, canAccessReports]);
 
   useEffect(() => {
-    if (user && role === "admin") {
+    if (user && canAccessReports) {
       fetchTimesheets();
+      fetchAllProjects();
     }
-  }, [user, role]);
+  }, [user, role, isHod]);
 
   useEffect(() => {
     filterTimesheets();
-  }, [searchTerm, filterStartDate, filterEndDate, filterStatus, timesheets]);
+  }, [searchTerm, filterStartDate, filterEndDate, filterStatus, filterProject, timesheets]);
+
+  const fetchAllProjects = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("projects")
+        .select("name")
+        .eq("is_active", true)
+        .order("name");
+
+      if (error) throw error;
+      setAllProjects(data?.map((p) => p.name) || []);
+    } catch (error) {
+      console.error("Error fetching projects:", error);
+    }
+  };
 
   const fetchTimesheets = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("timesheets")
         .select("*")
         .order("created_at", { ascending: false });
+
+      // For HOD (non-admin), only fetch timesheets for their projects
+      if (!isAdmin && isHod && hodProjects.length > 0) {
+        query = query.in("project", hodProjects);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setTimesheets(data || []);
@@ -93,6 +121,10 @@ export default function Reports() {
       filtered = filtered.filter((entry) => entry.status === filterStatus);
     }
 
+    if (filterProject !== "all") {
+      filtered = filtered.filter((entry) => entry.project === filterProject);
+    }
+
     setFilteredTimesheets(filtered);
   };
 
@@ -114,12 +146,13 @@ export default function Reports() {
       if (updateError) throw updateError;
 
       // Create notification for user
+      const reviewerType = isAdmin ? "Admin" : "HOD";
       const { error: notifError } = await supabase
         .from("notifications")
         .insert({
           user_id: userId,
           title: `Timesheet ${newStatus === "approved" ? "Approved" : "Rejected"}`,
-          message: `Your timesheet for "${projectName}" has been ${newStatus} by admin.`,
+          message: `Your timesheet for "${projectName}" has been ${newStatus} by ${reviewerType}.`,
           type: `timesheet_${newStatus}`,
           metadata: { timesheet_id: id, status: newStatus },
         });
@@ -218,12 +251,15 @@ export default function Reports() {
         entry.status.charAt(0).toUpperCase() + entry.status.slice(1),
       ]),
       theme: "grid",
-      headStyles: { fillColor: [126, 58, 242] },
+      headStyles: { fillColor: [220, 38, 38] },
     });
 
     doc.save(`Timesheet_Report_${new Date().toISOString().split("T")[0]}.pdf`);
     toast.success("PDF file downloaded successfully!");
   };
+
+  // Get projects to show in filter - for HOD, only their projects; for admin, all projects
+  const filterableProjects = isAdmin ? allProjects : hodProjects;
 
   if (loading) {
     return (
@@ -236,7 +272,7 @@ export default function Reports() {
     );
   }
 
-  if (role !== "admin") {
+  if (!canAccessReports) {
     return null;
   }
 
@@ -250,6 +286,9 @@ export default function Reports() {
           <h1 className="text-4xl font-bold mb-2 gradient-text">Reports & Approvals</h1>
           <p className="text-muted-foreground">
             View, approve/reject, filter, and export timesheet data
+            {!isAdmin && isHod && (
+              <span className="ml-2 text-amber-600">(Showing timesheets for your projects)</span>
+            )}
             {pendingCount > 0 && (
               <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-500/10 text-yellow-600 dark:text-yellow-400">
                 {pendingCount} pending approval
@@ -262,11 +301,11 @@ export default function Reports() {
           <CardHeader>
             <CardTitle>Filters & Export</CardTitle>
             <CardDescription>
-              Search, filter by status, then export to Excel or PDF
+              Search, filter by project/status, then export to Excel or PDF
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -297,6 +336,19 @@ export default function Reports() {
                   <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="approved">Approved</SelectItem>
                   <SelectItem value="rejected">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={filterProject} onValueChange={setFilterProject}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by project" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Projects</SelectItem>
+                  {filterableProjects.map((project) => (
+                    <SelectItem key={project} value={project}>
+                      {project}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -388,14 +440,16 @@ export default function Reports() {
                                 </Button>
                               </>
                             )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDelete(entry.id)}
-                              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 px-2"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {isAdmin && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDelete(entry.id)}
+                                className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 px-2"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -409,7 +463,7 @@ export default function Reports() {
 
         {/* Footer */}
         <footer className="mt-12 pt-8 border-t border-border text-center text-sm text-muted-foreground">
-          <p>© {new Date().getFullYear()} Kaveesha Engineers Inda PVT. LTD. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} KAVEESHA ENGINEERS INDIA PRIVATE LIMITED. All rights reserved.</p>
         </footer>
       </main>
     </div>

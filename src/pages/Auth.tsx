@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import logo from "@/assets/kaveeshalogo.png";
+import logo from "@/assets/kaveesha-logo.jpg";
 import { Loader2, Moon, Sun } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
 import { useAuth } from "@/hooks/useAuth";
