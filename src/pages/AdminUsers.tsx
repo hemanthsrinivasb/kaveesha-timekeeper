@@ -41,7 +41,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Search, Pencil, Trash2, Loader2, Users, Shield } from "lucide-react";
+import { Search, Pencil, Trash2, Loader2, Users, Shield, Bell } from "lucide-react";
 import { format } from "date-fns";
 
 interface User {
@@ -64,6 +64,7 @@ export default function AdminUsers() {
   const [searchQuery, setSearchQuery] = useState("");
   const [projectFilter, setProjectFilter] = useState<string>("all");
   const [allProjects, setAllProjects] = useState<string[]>([]);
+  const [sendingNotifications, setSendingNotifications] = useState(false);
 
   // Edit password state
   const [editPasswordOpen, setEditPasswordOpen] = useState(false);
@@ -88,12 +89,28 @@ export default function AdminUsers() {
   useEffect(() => {
     if (user && role === "admin" && session) {
       fetchUsers();
+      fetchAllProjectsFromDB();
     }
   }, [user, role, session]);
 
   useEffect(() => {
     filterUsers();
   }, [users, searchQuery, projectFilter]);
+
+  const fetchAllProjectsFromDB = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("projects")
+        .select("id, name")
+        .eq("is_active", true)
+        .order("name");
+
+      if (error) throw error;
+      setAllProjects(data?.map((p) => p.name) || []);
+    } catch (error: any) {
+      console.error("Error fetching projects:", error);
+    }
+  };
 
   const fetchUsers = async () => {
     setLoadingData(true);
@@ -108,13 +125,6 @@ export default function AdminUsers() {
       if (data.error) throw new Error(data.error);
 
       setUsers(data.users || []);
-
-      // Extract unique projects
-      const projects = new Set<string>();
-      data.users?.forEach((u: User) => {
-        u.projects.forEach((p) => projects.add(p));
-      });
-      setAllProjects(Array.from(projects).sort());
     } catch (error: any) {
       console.error("Error fetching users:", error);
       toast.error(error.message || "Failed to load users");
@@ -213,6 +223,27 @@ export default function AdminUsers() {
     }
   };
 
+  const handleNotifyMissingEmpId = async () => {
+    setSendingNotifications(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("notify-missing-empid", {
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+
+      toast.success(data.message || "Notifications sent successfully");
+    } catch (error: any) {
+      console.error("Error sending notifications:", error);
+      toast.error(error.message || "Failed to send notifications");
+    } finally {
+      setSendingNotifications(false);
+    }
+  };
+
   if (loading || loadingData) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -228,15 +259,33 @@ export default function AdminUsers() {
     return null;
   }
 
+  const usersWithoutEmpId = users.filter((u) => !u.employeeId || u.employeeId.trim() === "").length;
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
       <main className="container mx-auto px-4 py-8">
-        <div className="mb-8 animate-fade-in">
-          <h1 className="text-4xl font-bold mb-2 gradient-text">User Management</h1>
-          <p className="text-muted-foreground">
-            Manage all registered users (Admin Only)
-          </p>
+        <div className="mb-8 animate-fade-in flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-4xl font-bold mb-2 gradient-text">User Management</h1>
+            <p className="text-muted-foreground">
+              Manage all registered users (Admin Only)
+            </p>
+          </div>
+          {usersWithoutEmpId > 0 && (
+            <Button
+              onClick={handleNotifyMissingEmpId}
+              disabled={sendingNotifications}
+              className="gap-2"
+            >
+              {sendingNotifications ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Bell className="h-4 w-4" />
+              )}
+              Notify Users Without EmpId ({usersWithoutEmpId})
+            </Button>
+          )}
         </div>
 
         {/* Stats */}
@@ -409,7 +458,7 @@ export default function AdminUsers() {
 
         {/* Footer */}
         <footer className="mt-12 pt-8 border-t border-border text-center text-sm text-muted-foreground">
-          <p>© {new Date().getFullYear()} Kaveesha Engineers Inda PVT. LTD. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} KAVEESHA ENGINEERS INDIA PRIVATE LIMITED. All rights reserved.</p>
         </footer>
       </main>
 
