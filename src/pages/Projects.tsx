@@ -26,8 +26,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, Loader2, FolderOpen, UserPlus } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, FolderOpen, UserPlus, Crown } from "lucide-react";
 import { UserAssignment } from "@/components/UserAssignment";
+import { HODAssignment } from "@/components/HODAssignment";
 
 interface Project {
   id: string;
@@ -46,7 +47,9 @@ export default function Projects() {
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [hodDialogOpen, setHodDialogOpen] = useState(false);
   const [selectedProjectForAssignment, setSelectedProjectForAssignment] = useState<Project | null>(null);
+  const [selectedProjectForHod, setSelectedProjectForHod] = useState<Project | null>(null);
   
   // Form state
   const [name, setName] = useState("");
@@ -109,6 +112,11 @@ export default function Projects() {
   const openAssignDialog = (project: Project) => {
     setSelectedProjectForAssignment(project);
     setAssignDialogOpen(true);
+  };
+
+  const openHodDialog = (project: Project) => {
+    setSelectedProjectForHod(project);
+    setHodDialogOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -327,6 +335,15 @@ export default function Projects() {
                             <Button
                               variant="ghost"
                               size="icon"
+                              onClick={() => openHodDialog(project)}
+                              title="Assign Head of Department"
+                              className="text-amber-600 hover:text-amber-700 hover:bg-amber-500/10"
+                            >
+                              <Crown className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               onClick={() => openAssignDialog(project)}
                               title="Assign users"
                               className="text-primary hover:text-primary"
@@ -367,6 +384,16 @@ export default function Projects() {
             project={selectedProjectForAssignment}
             open={assignDialogOpen}
             onOpenChange={setAssignDialogOpen}
+            onAssigned={fetchProjects}
+          />
+        )}
+
+        {/* HOD Assignment Dialog */}
+        {selectedProjectForHod && (
+          <HODAssignment
+            project={selectedProjectForHod}
+            open={hodDialogOpen}
+            onOpenChange={setHodDialogOpen}
             onAssigned={fetchProjects}
           />
         )}
