@@ -214,16 +214,21 @@ export default function AdminAnalytics() {
               <CardDescription>Distribution of hours across projects</CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="100%" height={350}>
                 <PieChart>
                   <Pie
                     data={projectData}
                     cx="50%"
-                    cy="50%"
-                    outerRadius={100}
+                    cy="45%"
+                    outerRadius={80}
+                    innerRadius={30}
                     fill="hsl(var(--primary))"
                     dataKey="value"
-                    label={({ name, value }) => `${name}: ${value}h`}
+                    paddingAngle={2}
+                    label={({ name, value, percent }) => 
+                      percent > 0.05 ? `${name.length > 10 ? name.substring(0, 10) + '...' : name}` : ''
+                    }
+                    labelLine={false}
                   >
                     {projectData.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -235,6 +240,14 @@ export default function AdminAnalytics() {
                       border: "1px solid hsl(var(--border))",
                       borderRadius: "8px",
                     }}
+                    formatter={(value: number, name: string) => [`${value}h`, name]}
+                  />
+                  <Legend 
+                    layout="horizontal" 
+                    verticalAlign="bottom" 
+                    align="center"
+                    wrapperStyle={{ paddingTop: 20 }}
+                    formatter={(value) => value.length > 15 ? value.substring(0, 15) + '...' : value}
                   />
                 </PieChart>
               </ResponsiveContainer>

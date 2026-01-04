@@ -7,17 +7,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Crown } from "lucide-react";
+import { Loader2, Crown, Search, Check } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 interface Profile {
@@ -41,14 +36,15 @@ interface HODAssignmentProps {
 export function HODAssignment({ project, open, onOpenChange, onAssigned }: HODAssignmentProps) {
   const { user } = useAuth();
   const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [currentHod, setCurrentHod] = useState<Profile | null>(null);
-  const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const [currentHodId, setCurrentHodId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (open) {
       fetchData();
+      setSearchQuery("");
     }
   }, [open, project.id]);
 
@@ -73,15 +69,7 @@ export function HODAssignment({ project, open, onOpenChange, onAssigned }: HODAs
       if (hodError) throw hodError;
 
       setProfiles(profilesData || []);
-      
-      if (hodData) {
-        const hod = profilesData?.find(p => p.id === hodData.user_id);
-        setCurrentHod(hod || null);
-        setSelectedUserId(hodData.user_id);
-      } else {
-        setCurrentHod(null);
-        setSelectedUserId("");
-      }
+      setCurrentHodId(hodData?.user_id || null);
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Failed to load data");
@@ -90,52 +78,40 @@ export function HODAssignment({ project, open, onOpenChange, onAssigned }: HODAs
     }
   };
 
-  const handleAssign = async () => {
-    if (!selectedUserId || !user) return;
+  const handleAssign = async (profileId: string) => {
+    if (!user) return;
 
     setSubmitting(true);
     try {
       // Delete existing HOD assignment if any
-      await supabase
-        .from("project_hods")
-        .delete()
-        .eq("project_id", project.id);
+      await supabase.from("project_hods").delete().eq("project_id", project.id);
 
       // Create new assignment
-      const { error: assignError } = await supabase
-        .from("project_hods")
-        .insert({
-          project_id: project.id,
-          user_id: selectedUserId,
-          assigned_by: user.id,
-        });
+      const { error: assignError } = await supabase.from("project_hods").insert({
+        project_id: project.id,
+        user_id: profileId,
+        assigned_by: user.id,
+      });
 
       if (assignError) throw assignError;
 
-      // Get user info for notification
-      const assignedProfile = profiles.find((p) => p.id === selectedUserId);
+      const assignedProfile = profiles.find((p) => p.id === profileId);
 
       // Create notification for the assigned HOD
-      const { error: notifError } = await supabase
-        .from("notifications")
-        .insert({
-          user_id: selectedUserId,
-          title: "Head of Department Assignment",
-          message: `You have been assigned as Head of Department for project "${project.name}". You can now approve/reject timesheets for this project.`,
-          type: "hod_assignment",
-          metadata: { project_id: project.id, project_name: project.name },
-        });
-
-      if (notifError) {
-        console.error("Error creating notification:", notifError);
-      }
+      await supabase.from("notifications").insert({
+        user_id: profileId,
+        title: "Head of Department Assignment",
+        message: `You have been assigned as Head of Department for project "${project.name}". You can now approve/reject timesheets for this project.`,
+        type: "hod_assignment",
+        metadata: { project_id: project.id, project_name: project.name },
+      });
 
       toast.success(
         `${assignedProfile?.display_name || assignedProfile?.email} is now HOD for ${project.name}`
       );
-      
+
+      setCurrentHodId(profileId);
       onAssigned();
-      onOpenChange(false);
     } catch (error: any) {
       console.error("Error assigning HOD:", error);
       toast.error("Failed to assign Head of Department");
@@ -145,7 +121,7 @@ export function HODAssignment({ project, open, onOpenChange, onAssigned }: HODAs
   };
 
   const handleRemoveHod = async () => {
-    if (!currentHod) return;
+    if (!currentHodId) return;
 
     setSubmitting(true);
     try {
@@ -157,8 +133,7 @@ export function HODAssignment({ project, open, onOpenChange, onAssigned }: HODAs
       if (error) throw error;
 
       toast.success(`Removed HOD from ${project.name}`);
-      setCurrentHod(null);
-      setSelectedUserId("");
+      setCurrentHodId(null);
       onAssigned();
     } catch (error) {
       console.error("Error removing HOD:", error);
@@ -168,80 +143,105 @@ export function HODAssignment({ project, open, onOpenChange, onAssigned }: HODAs
     }
   };
 
+  const currentHodProfile = profiles.find((p) => p.id === currentHodId);
+
+  const filteredProfiles = profiles.filter(
+    (p) =>
+      searchQuery === "" ||
+      p.display_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.email?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-card">
+      <DialogContent className="bg-card max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Crown className="h-5 w-5 text-primary" />
             Assign Head of Department
           </DialogTitle>
           <DialogDescription>
-            Assign a Head of Department for "{project.name}". The HOD can approve/reject timesheets for this project.
+            Assign a HOD for "{project.name}". The HOD can approve/reject timesheets.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 pt-4">
-          {currentHod && (
-            <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
-              <p className="text-sm font-medium">Current HOD:</p>
-              <p className="text-primary font-semibold">
-                {currentHod.display_name || currentHod.email}
-              </p>
-            </div>
-          )}
-          
-          <div className="space-y-2">
-            <Label htmlFor="hod">Select New HOD</Label>
-            {loading ? (
-              <div className="flex items-center justify-center py-4">
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+
+        <div className="space-y-4 pt-2">
+          {/* Current HOD */}
+          {currentHodProfile && (
+            <div className="p-3 bg-primary/10 rounded-lg border border-primary/20 flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Current HOD:</p>
+                <p className="text-primary font-semibold">
+                  {currentHodProfile.display_name || currentHodProfile.email}
+                </p>
               </div>
-            ) : (
-              <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a user..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {profiles.map((profile) => (
-                    <SelectItem key={profile.id} value={profile.id}>
-                      {profile.display_name || profile.email || "Unknown User"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-          <div className="flex gap-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-            {currentHod && (
               <Button
                 variant="destructive"
+                size="sm"
                 onClick={handleRemoveHod}
                 disabled={submitting}
               >
-                Remove HOD
+                Remove
               </Button>
-            )}
-            <Button
-              onClick={handleAssign}
-              disabled={!selectedUserId || submitting}
-              className="flex-1"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                "Assign HOD"
-              )}
+            </div>
+          )}
+
+          {/* Search Box */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search users..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div>
+              <Label className="text-sm font-medium">Select HOD</Label>
+              <ScrollArea className="h-56 mt-2 rounded-md border">
+                {filteredProfiles.length === 0 ? (
+                  <p className="text-sm text-muted-foreground p-4 text-center">
+                    No matching users found
+                  </p>
+                ) : (
+                  <div className="p-2 space-y-1">
+                    {filteredProfiles.slice(0, 50).map((profile) => (
+                      <div
+                        key={profile.id}
+                        className={`flex items-center justify-between p-2 rounded-md cursor-pointer transition-colors ${
+                          currentHodId === profile.id
+                            ? "bg-primary/10 border border-primary/30"
+                            : "hover:bg-muted/50"
+                        }`}
+                        onClick={() => {
+                          if (currentHodId !== profile.id && !submitting) {
+                            handleAssign(profile.id);
+                          }
+                        }}
+                      >
+                        <span className="text-sm truncate flex-1">
+                          {profile.display_name || profile.email || "Unknown"}
+                        </span>
+                        {currentHodId === profile.id && (
+                          <Check className="h-4 w-4 text-primary" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </div>
+          )}
+
+          <div className="flex justify-end pt-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Close
             </Button>
           </div>
         </div>

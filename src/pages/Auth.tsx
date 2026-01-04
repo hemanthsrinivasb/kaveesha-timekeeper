@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import logo from "@/assets/kaveesha-logo.jpg";
+import logo from "@/assets/kaveesha-logo.png";
 import { Loader2, Moon, Sun } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
 import { useAuth } from "@/hooks/useAuth";
@@ -219,14 +219,14 @@ export default function Auth() {
         <Card className="w-full max-w-md shadow-glow animate-fade-in">
           <CardHeader className="text-center space-y-4">
             <div className="flex justify-center">
-              <img src={logo} alt="Kaveesha Engineers India Pvt. Ltd." className="h-16 w-16" />
+              <img src={logo} alt="Kaveesha Engineers India Pvt. Ltd." className="h-20 w-auto object-contain" />
             </div>
             <div>
-              <CardTitle className="text-xl gradient-text">
+              <CardTitle className="text-sm font-semibold gradient-text whitespace-nowrap">
                 KAVEESHA ENGINEERS INDIA PRIVATE LIMITED
               </CardTitle>
-              <CardDescription className="mt-2">
-                {isLogin ? "Welcome back! Please log in." : "Create your account"}
+              <CardDescription className="mt-2 text-base font-medium">
+                {isLogin ? "Secure Employee Access Portal" : "Create your account"}
               </CardDescription>
             </div>
           </CardHeader>
