@@ -7,17 +7,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, UserPlus } from "lucide-react";
+import { Loader2, UserPlus, Search, Trash2, Plus } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 interface Profile {
@@ -38,26 +33,35 @@ interface UserAssignmentProps {
   onAssigned: () => void;
 }
 
+interface AssignedUser {
+  id: string;
+  user_id: string;
+  profile: Profile;
+}
+
 export function UserAssignment({ project, open, onOpenChange, onAssigned }: UserAssignmentProps) {
   const { user } = useAuth();
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const [allProfiles, setAllProfiles] = useState<Profile[]>([]);
+  const [assignedUsers, setAssignedUsers] = useState<AssignedUser[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [removingUserId, setRemovingUserId] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
-      fetchProfiles();
+      fetchData();
+      setSearchQuery("");
     }
-  }, [open]);
+  }, [open, project.id]);
 
-  const fetchProfiles = async () => {
+  const fetchData = async () => {
     setLoading(true);
     try {
       // Fetch all profiles
       const { data: profilesData, error: profilesError } = await supabase
         .from("profiles")
-        .select("*")
+        .select("id, email, display_name")
         .order("display_name");
 
       if (profilesError) throw profilesError;
@@ -65,68 +69,64 @@ export function UserAssignment({ project, open, onOpenChange, onAssigned }: User
       // Fetch existing assignments for this project
       const { data: assignmentsData, error: assignmentsError } = await supabase
         .from("project_assignments")
-        .select("user_id")
+        .select("id, user_id")
         .eq("project_id", project.id);
 
       if (assignmentsError) throw assignmentsError;
 
-      const assignedUserIds = new Set(assignmentsData?.map((a) => a.user_id) || []);
+      setAllProfiles(profilesData || []);
 
-      // Filter out already assigned users
-      const availableProfiles = (profilesData || []).filter(
-        (p) => !assignedUserIds.has(p.id)
-      );
+      // Map assignments with profile info
+      const assignedWithProfiles = (assignmentsData || []).map((assignment) => {
+        const profile = profilesData?.find((p) => p.id === assignment.user_id);
+        return {
+          id: assignment.id,
+          user_id: assignment.user_id,
+          profile: profile || { id: assignment.user_id, email: null, display_name: "Unknown User" },
+        };
+      });
 
-      setProfiles(availableProfiles);
+      setAssignedUsers(assignedWithProfiles);
     } catch (error) {
-      console.error("Error fetching profiles:", error);
-      toast.error("Failed to load users");
+      console.error("Error fetching data:", error);
+      toast.error("Failed to load data");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAssign = async () => {
-    if (!selectedUserId || !user) return;
+  const handleAssign = async (profileId: string) => {
+    if (!user) return;
 
     setSubmitting(true);
     try {
-      // Create assignment
       const { error: assignError } = await supabase
         .from("project_assignments")
         .insert({
           project_id: project.id,
-          user_id: selectedUserId,
+          user_id: profileId,
           assigned_by: user.id,
         });
 
       if (assignError) throw assignError;
 
-      // Get user info for notification
-      const assignedProfile = profiles.find((p) => p.id === selectedUserId);
+      const assignedProfile = allProfiles.find((p) => p.id === profileId);
 
       // Create notification for the assigned user
-      const { error: notifError } = await supabase
-        .from("notifications")
-        .insert({
-          user_id: selectedUserId,
-          title: "Project Assignment",
-          message: `You have been assigned to project "${project.name}"`,
-          type: "project_assignment",
-          metadata: { project_id: project.id, project_name: project.name },
-        });
-
-      if (notifError) {
-        console.error("Error creating notification:", notifError);
-      }
+      await supabase.from("notifications").insert({
+        user_id: profileId,
+        title: "Project Assignment",
+        message: `You have been assigned to project "${project.name}"`,
+        type: "project_assignment",
+        metadata: { project_id: project.id, project_name: project.name },
+      });
 
       toast.success(
-        `${assignedProfile?.display_name || assignedProfile?.email} has been assigned to ${project.name}`
+        `${assignedProfile?.display_name || assignedProfile?.email} has been assigned`
       );
-      
+
+      fetchData();
       onAssigned();
-      onOpenChange(false);
-      setSelectedUserId("");
     } catch (error: any) {
       console.error("Error assigning user:", error);
       if (error.code === "23505") {
@@ -139,66 +139,164 @@ export function UserAssignment({ project, open, onOpenChange, onAssigned }: User
     }
   };
 
+  const handleRemove = async (assignmentId: string, userId: string) => {
+    setRemovingUserId(userId);
+    try {
+      const { error } = await supabase
+        .from("project_assignments")
+        .delete()
+        .eq("id", assignmentId);
+
+      if (error) throw error;
+
+      toast.success("User removed from project");
+      fetchData();
+      onAssigned();
+    } catch (error) {
+      console.error("Error removing user:", error);
+      toast.error("Failed to remove user");
+    } finally {
+      setRemovingUserId(null);
+    }
+  };
+
+  const assignedUserIds = new Set(assignedUsers.map((a) => a.user_id));
+
+  const availableProfiles = allProfiles.filter(
+    (p) =>
+      !assignedUserIds.has(p.id) &&
+      (searchQuery === "" ||
+        p.display_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.email?.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  const filteredAssignedUsers = assignedUsers.filter(
+    (a) =>
+      searchQuery === "" ||
+      a.profile.display_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      a.profile.email?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-card">
+      <DialogContent className="bg-card max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-5 w-5" />
-            Assign User to Project
+            Manage Users - {project.name}
           </DialogTitle>
           <DialogDescription>
-            Select a user to assign to "{project.name}". They will receive a notification.
+            Add or remove users from this project
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 pt-4">
-          <div className="space-y-2">
-            <Label htmlFor="user">Select User</Label>
-            {loading ? (
-              <div className="flex items-center justify-center py-4">
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
-              </div>
-            ) : profiles.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-2">
-                All users are already assigned to this project.
-              </p>
-            ) : (
-              <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a user..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {profiles.map((profile) => (
-                    <SelectItem key={profile.id} value={profile.id}>
-                      {profile.display_name || profile.email || "Unknown User"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
+
+        <div className="space-y-4 pt-2">
+          {/* Search Box */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search users..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
           </div>
-          <div className="flex gap-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleAssign}
-              disabled={!selectedUserId || submitting}
-              className="flex-1"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Assigning...
-                </>
-              ) : (
-                "Assign User"
-              )}
+
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : (
+            <>
+              {/* Assigned Users Section */}
+              <div>
+                <Label className="text-sm font-medium">
+                  Assigned Users ({assignedUsers.length})
+                </Label>
+                <ScrollArea className="h-40 mt-2 rounded-md border">
+                  {filteredAssignedUsers.length === 0 ? (
+                    <p className="text-sm text-muted-foreground p-4 text-center">
+                      {assignedUsers.length === 0
+                        ? "No users assigned yet"
+                        : "No matching users found"}
+                    </p>
+                  ) : (
+                    <div className="p-2 space-y-1">
+                      {filteredAssignedUsers.map((assigned) => (
+                        <div
+                          key={assigned.id}
+                          className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50"
+                        >
+                          <span className="text-sm truncate flex-1">
+                            {assigned.profile.display_name || assigned.profile.email || "Unknown"}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => handleRemove(assigned.id, assigned.user_id)}
+                            disabled={removingUserId === assigned.user_id}
+                          >
+                            {removingUserId === assigned.user_id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+              </div>
+
+              {/* Available Users Section */}
+              <div>
+                <Label className="text-sm font-medium">
+                  Available Users ({availableProfiles.length})
+                </Label>
+                <ScrollArea className="h-40 mt-2 rounded-md border">
+                  {availableProfiles.length === 0 ? (
+                    <p className="text-sm text-muted-foreground p-4 text-center">
+                      {searchQuery
+                        ? "No matching users found"
+                        : "All users are already assigned"}
+                    </p>
+                  ) : (
+                    <div className="p-2 space-y-1">
+                      {availableProfiles.slice(0, 50).map((profile) => (
+                        <div
+                          key={profile.id}
+                          className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50"
+                        >
+                          <span className="text-sm truncate flex-1">
+                            {profile.display_name || profile.email || "Unknown"}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10"
+                            onClick={() => handleAssign(profile.id)}
+                            disabled={submitting}
+                          >
+                            {submitting ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Plus className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+              </div>
+            </>
+          )}
+
+          <div className="flex justify-end pt-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Close
             </Button>
           </div>
         </div>
