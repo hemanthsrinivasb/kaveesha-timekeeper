@@ -32,8 +32,9 @@ All colors MUST be HSL.
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 20% 90%;
-    --input: 0 20% 90%;
+    --border: 0 0% 75%;
+    --input: 0 0% 0%;
+    --input-border: 0 0% 20%;
     --ring: 0 72% 51%;
 
     --radius: 0.75rem;
@@ -80,8 +81,9 @@ All colors MUST be HSL.
     --destructive: 0 62.8% 50%;
     --destructive-foreground: 0 20% 95%;
 
-    --border: 0 15% 20%;
-    --input: 0 15% 20%;
+    --border: 0 0% 30%;
+    --input: 0 0% 100%;
+    --input-border: 0 0% 80%;
     --ring: 0 72% 55%;
 
     /* Custom gradient colors for dark mode */

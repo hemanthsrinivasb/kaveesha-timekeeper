@@ -1,13 +1,16 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { TimesheetForm } from "@/components/TimesheetForm";
+import { WeeklyTimesheetForm } from "@/components/WeeklyTimesheetForm";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function Timesheet() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
+  const [activeTab, setActiveTab] = useState("weekly");
 
   useEffect(() => {
     if (!loading && !user) {
@@ -30,30 +33,53 @@ export default function Timesheet() {
     <div className="min-h-screen bg-background">
       <Navbar />
       <main className="container mx-auto px-4 py-8">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <div className="mb-8 animate-fade-in">
-            <h1 className="text-4xl font-bold mb-2 gradient-text">Add Timesheet Entry</h1>
+            <h1 className="text-4xl font-bold mb-2 gradient-text">Timesheet Entry</h1>
             <p className="text-muted-foreground">
               Record your work hours and project details
             </p>
           </div>
 
-          <Card className="shadow-glow animate-slide-up">
-            <CardHeader>
-              <CardTitle>Timesheet Details</CardTitle>
-              <CardDescription>
-                Fill in all the required information about your work
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <TimesheetForm onSuccess={() => navigate("/")} />
-            </CardContent>
-          </Card>
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="mb-6">
+              <TabsTrigger value="weekly">Weekly Entry</TabsTrigger>
+              <TabsTrigger value="daily">Single Entry</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="weekly">
+              <Card className="shadow-glow animate-slide-up">
+                <CardHeader>
+                  <CardTitle>Weekly Timesheet</CardTitle>
+                  <CardDescription>
+                    Enter your work hours for the entire week at once
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <WeeklyTimesheetForm onSuccess={() => navigate("/")} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="daily">
+              <Card className="shadow-glow animate-slide-up">
+                <CardHeader>
+                  <CardTitle>Single Entry</CardTitle>
+                  <CardDescription>
+                    Add individual timesheet entries one at a time
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <TimesheetForm onSuccess={() => navigate("/")} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
 
         {/* Footer */}
         <footer className="mt-12 pt-8 border-t border-border text-center text-sm text-muted-foreground">
-          <p>© {new Date().getFullYear()} Kaveesha Engineers Inda PVT. LTD. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Kaveesha Engineers India PVT. LTD. All rights reserved.</p>
         </footer>
       </main>
     </div>

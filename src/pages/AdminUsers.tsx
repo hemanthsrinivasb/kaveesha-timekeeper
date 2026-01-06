@@ -41,8 +41,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Search, Pencil, Trash2, Loader2, Users, Shield, Bell } from "lucide-react";
+import { Search, Pencil, Trash2, Loader2, Users, Shield, Bell, ShieldPlus, IdCard } from "lucide-react";
 import { format } from "date-fns";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface User {
   id: string;
@@ -75,6 +81,15 @@ export default function AdminUsers() {
   // Delete user state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingUser, setDeletingUser] = useState(false);
+
+  // Make admin state
+  const [makeAdminDialogOpen, setMakeAdminDialogOpen] = useState(false);
+  const [updatingRole, setUpdatingRole] = useState(false);
+
+  // Edit employee ID state
+  const [editEmpIdOpen, setEditEmpIdOpen] = useState(false);
+  const [newEmployeeId, setNewEmployeeId] = useState("");
+  const [updatingEmpId, setUpdatingEmpId] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -244,6 +259,71 @@ export default function AdminUsers() {
     }
   };
 
+  // Make Admin handlers
+  const handleMakeAdmin = (targetUser: User) => {
+    setSelectedUser(targetUser);
+    setMakeAdminDialogOpen(true);
+  };
+
+  const confirmMakeAdmin = async () => {
+    if (!selectedUser) return;
+
+    setUpdatingRole(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-update-role", {
+        body: { userId: selectedUser.id, newRole: "admin" },
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+
+      toast.success(`${selectedUser.displayName || selectedUser.email} is now an admin`);
+      setMakeAdminDialogOpen(false);
+      fetchUsers();
+    } catch (error: any) {
+      console.error("Error updating role:", error);
+      toast.error(error.message || "Failed to update role");
+    } finally {
+      setUpdatingRole(false);
+    }
+  };
+
+  // Edit Employee ID handlers
+  const handleEditEmpId = (targetUser: User) => {
+    setSelectedUser(targetUser);
+    setNewEmployeeId(targetUser.employeeId || "");
+    setEditEmpIdOpen(true);
+  };
+
+  const handleUpdateEmpId = async () => {
+    if (!selectedUser) return;
+
+    setUpdatingEmpId(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-update-employee-id", {
+        body: { userId: selectedUser.id, employeeId: newEmployeeId },
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+
+      toast.success("Employee ID updated successfully");
+      setEditEmpIdOpen(false);
+      fetchUsers();
+    } catch (error: any) {
+      console.error("Error updating employee ID:", error);
+      toast.error(error.message || "Failed to update employee ID");
+    } finally {
+      setUpdatingEmpId(false);
+    }
+  };
+
   if (loading || loadingData) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -379,7 +459,6 @@ export default function AdminUsers() {
                     <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Projects</TableHead>
-                    <TableHead>Password</TableHead>
                     <TableHead>Password Changed</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -388,7 +467,7 @@ export default function AdminUsers() {
                 <TableBody>
                   {filteredUsers.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                         No users found
                       </TableCell>
                     </TableRow>
@@ -414,9 +493,6 @@ export default function AdminUsers() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <span className="text-muted-foreground">••••••••</span>
-                        </TableCell>
-                        <TableCell>
                           {u.passwordChangedAt
                             ? format(new Date(u.passwordChangedAt), "MMM d, yyyy HH:mm")
                             : "-"}
@@ -426,25 +502,77 @@ export default function AdminUsers() {
                             {u.role}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEditPassword(u)}
-                            >
-                              <Pencil className="h-4 w-4 mr-1" />
-                              Edit Password
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleDeleteUser(u)}
-                              disabled={u.id === user?.id}
-                            >
-                              <Trash2 className="h-4 w-4 mr-1" />
-                              Delete
-                            </Button>
+                        <TableCell>
+                          <div className="flex justify-end gap-1">
+                            <TooltipProvider>
+                              {/* Make Admin Button */}
+                              {u.role !== "admin" && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleMakeAdmin(u)}
+                                      disabled={u.id === user?.id}
+                                    >
+                                      <ShieldPlus className="h-4 w-4 text-primary" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Make Admin</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
+                              
+                              {/* Edit Employee ID Button */}
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleEditEmpId(u)}
+                                  >
+                                    <IdCard className="h-4 w-4 text-muted-foreground" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Edit Employee ID</p>
+                                </TooltipContent>
+                              </Tooltip>
+
+                              {/* Edit Password Button */}
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleEditPassword(u)}
+                                  >
+                                    <Pencil className="h-4 w-4 text-muted-foreground" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Edit Password</p>
+                                </TooltipContent>
+                              </Tooltip>
+
+                              {/* Delete Button */}
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleDeleteUser(u)}
+                                    disabled={u.id === user?.id}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Delete User</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -501,6 +629,44 @@ export default function AdminUsers() {
         </DialogContent>
       </Dialog>
 
+      {/* Edit Employee ID Dialog */}
+      <Dialog open={editEmpIdOpen} onOpenChange={setEditEmpIdOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Employee ID</DialogTitle>
+            <DialogDescription>
+              Update employee ID for {selectedUser?.displayName || selectedUser?.email}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium">Employee ID</label>
+              <Input
+                placeholder="Enter employee ID"
+                value={newEmployeeId}
+                onChange={(e) => setNewEmployeeId(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditEmpIdOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateEmpId} disabled={updatingEmpId}>
+              {updatingEmpId ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                "Update Employee ID"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
@@ -526,6 +692,35 @@ export default function AdminUsers() {
                 </>
               ) : (
                 "Delete User"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Make Admin Confirmation Dialog */}
+      <AlertDialog open={makeAdminDialogOpen} onOpenChange={setMakeAdminDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Make User Admin</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to make {selectedUser?.displayName || selectedUser?.email} an admin?
+              Admins have full access to manage users, projects, and all timesheets.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={updatingRole}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmMakeAdmin}
+              disabled={updatingRole}
+            >
+              {updatingRole ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                "Make Admin"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
