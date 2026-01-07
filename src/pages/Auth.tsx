@@ -33,14 +33,6 @@ const loginSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters").max(100),
 });
 
-const signupSchema = z.object({
-  firstName: z.string().min(1, "First name is required").max(50),
-  lastName: z.string().min(1, "Last name is required").max(50),
-  employeeId: z.string().min(1, "Employee ID is required").max(20),
-  email: z.string().email("Invalid email address").max(255),
-  password: z.string().min(6, "Password must be at least 6 characters").max(100),
-});
-
 const resetPasswordSchema = z.object({
   newPassword: z.string().min(6, "Password must be at least 6 characters").max(100),
 });
@@ -49,7 +41,6 @@ export default function Auth() {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
   const { user, loading: authLoading } = useAuth();
-  const [isLogin, setIsLogin] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
@@ -57,17 +48,6 @@ export default function Auth() {
   const loginForm = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "",
-      password: "",
-    },
-  });
-
-  const signupForm = useForm<z.infer<typeof signupSchema>>({
-    resolver: zodResolver(signupSchema),
-    defaultValues: {
-      firstName: "",
-      lastName: "",
-      employeeId: "",
       email: "",
       password: "",
     },
@@ -103,61 +83,6 @@ export default function Auth() {
         return;
       }
       toast.success("Logged in successfully!");
-    } catch (error: any) {
-      console.error("Auth error:", error);
-      toast.error(error.message || "Authentication failed");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const onSignupSubmit = async (values: z.infer<typeof signupSchema>) => {
-    setIsLoading(true);
-    try {
-      // Use first name as the display name (username)
-      const displayName = values.firstName;
-      
-      const { data, error } = await supabase.auth.signUp({
-        email: values.email,
-        password: values.password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/`,
-          data: {
-            display_name: displayName,
-            employee_id: values.employeeId,
-            first_name: values.firstName,
-            last_name: values.lastName,
-          },
-        },
-      });
-
-      if (error) {
-        if (error.message.includes("User already registered")) {
-          toast.error("This email is already registered. Please log in instead.");
-        } else {
-          toast.error(error.message);
-        }
-        return;
-      }
-
-      // Update the profile with the employee_id after signup
-      if (data.user) {
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .update({
-            display_name: displayName,
-            employee_id: values.employeeId,
-          })
-          .eq("id", data.user.id);
-
-        if (profileError) {
-          console.error("Profile update error:", profileError);
-        }
-      }
-
-      toast.success("Account created successfully! You can now log in.");
-      setIsLogin(true);
-      signupForm.reset();
     } catch (error: any) {
       console.error("Auth error:", error);
       toast.error(error.message || "Authentication failed");
@@ -226,201 +151,74 @@ export default function Auth() {
                 KAVEESHA ENGINEERS INDIA PRIVATE LIMITED
               </CardTitle>
               <CardDescription className="mt-2 text-base font-medium">
-                {isLogin ? "Secure Employee Access Portal" : "Create your account"}
+                Time Sheet
               </CardDescription>
             </div>
           </CardHeader>
           <CardContent>
-            {isLogin ? (
-              <Form {...loginForm}>
-                <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
-                  <FormField
-                    control={loginForm.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="email"
-                            placeholder="you@example.com"
-                            {...field}
-                            disabled={isLoading}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+            <Form {...loginForm}>
+              <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
+                <FormField
+                  control={loginForm.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="email"
+                          placeholder="you@example.com"
+                          {...field}
+                          disabled={isLoading}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                  <FormField
-                    control={loginForm.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="password"
-                            placeholder="••••••••"
-                            {...field}
-                            disabled={isLoading}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                <FormField
+                  control={loginForm.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="password"
+                          placeholder="••••••••"
+                          {...field}
+                          disabled={isLoading}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                  <div className="text-right">
-                    <Button
-                      type="button"
-                      variant="link"
-                      className="p-0 h-auto text-sm text-muted-foreground hover:text-primary"
-                      onClick={() => setShowResetPassword(true)}
-                    >
-                      Forgot Password?
-                    </Button>
-                  </div>
-
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Logging in...
-                      </>
-                    ) : (
-                      "Log In"
-                    )}
+                <div className="text-right">
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="p-0 h-auto text-sm text-muted-foreground hover:text-primary"
+                    onClick={() => setShowResetPassword(true)}
+                  >
+                    Forgot Password?
                   </Button>
-                </form>
-              </Form>
-            ) : (
-              <Form {...signupForm}>
-                <form onSubmit={signupForm.handleSubmit(onSignupSubmit)} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={signupForm.control}
-                      name="firstName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>First Name</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="John"
-                              {...field}
-                              disabled={isLoading}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                </div>
 
-                    <FormField
-                      control={signupForm.control}
-                      name="lastName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Last Name</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="Doe"
-                              {...field}
-                              disabled={isLoading}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <FormField
-                    control={signupForm.control}
-                    name="employeeId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Employee ID</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="EMP001"
-                            {...field}
-                            disabled={isLoading}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={signupForm.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="email"
-                            placeholder="you@example.com"
-                            {...field}
-                            disabled={isLoading}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={signupForm.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="password"
-                            placeholder="••••••••"
-                            {...field}
-                            disabled={isLoading}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Creating account...
-                      </>
-                    ) : (
-                      "Sign Up"
-                    )}
-                  </Button>
-                </form>
-              </Form>
-            )}
-
-            <div className="mt-4 text-center">
-              <Button
-                variant="link"
-                onClick={() => {
-                  setIsLogin(!isLogin);
-                  loginForm.reset();
-                  signupForm.reset();
-                }}
-                disabled={isLoading}
-              >
-                {isLogin
-                  ? "Don't have an account? Sign up"
-                  : "Already have an account? Log in"}
-              </Button>
-            </div>
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Logging in...
+                    </>
+                  ) : (
+                    "Log In"
+                  )}
+                </Button>
+              </form>
+            </Form>
           </CardContent>
         </Card>
       </div>

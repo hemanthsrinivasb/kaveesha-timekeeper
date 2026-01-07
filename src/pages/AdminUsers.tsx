@@ -41,7 +41,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Search, Pencil, Trash2, Loader2, Users, Shield, Bell, ShieldPlus, ShieldMinus, IdCard } from "lucide-react";
+import { Search, Pencil, Trash2, Loader2, Users, Shield, Bell, ShieldPlus, ShieldMinus, IdCard, UserPlus } from "lucide-react";
 import { format } from "date-fns";
 import {
   Tooltip,
@@ -49,6 +49,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Label } from "@/components/ui/label";
 
 interface User {
   id: string;
@@ -92,6 +93,16 @@ export default function AdminUsers() {
   const [newEmployeeId, setNewEmployeeId] = useState("");
   const [updatingEmpId, setUpdatingEmpId] = useState(false);
 
+  // Create user state
+  const [createUserOpen, setCreateUserOpen] = useState(false);
+  const [creatingUser, setCreatingUser] = useState(false);
+  const [newUserData, setNewUserData] = useState({
+    firstName: "",
+    lastName: "",
+    employeeId: "",
+    email: "",
+    password: "",
+  });
   useEffect(() => {
     if (!loading && !user) {
       navigate("/auth");
@@ -329,6 +340,57 @@ export default function AdminUsers() {
     }
   };
 
+  // Create user handler
+  const handleCreateUser = async () => {
+    const { firstName, lastName, employeeId, email, password } = newUserData;
+
+    // Validation
+    if (!firstName || !lastName || !employeeId || !email || !password) {
+      toast.error("All fields are required");
+      return;
+    }
+
+    if (password.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast.error("Invalid email address");
+      return;
+    }
+
+    setCreatingUser(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-create-user", {
+        body: { firstName, lastName, employeeId, email, password },
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+
+      toast.success("User created successfully");
+      setCreateUserOpen(false);
+      setNewUserData({
+        firstName: "",
+        lastName: "",
+        employeeId: "",
+        email: "",
+        password: "",
+      });
+      fetchUsers();
+    } catch (error: any) {
+      console.error("Error creating user:", error);
+      toast.error(error.message || "Failed to create user");
+    } finally {
+      setCreatingUser(false);
+    }
+  };
   if (loading || loadingData) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -357,20 +419,30 @@ export default function AdminUsers() {
               Manage all registered users (Admin Only)
             </p>
           </div>
-          {usersWithoutEmpId > 0 && (
+          <div className="flex flex-wrap gap-2">
             <Button
-              onClick={handleNotifyMissingEmpId}
-              disabled={sendingNotifications}
+              onClick={() => setCreateUserOpen(true)}
               className="gap-2"
             >
-              {sendingNotifications ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Bell className="h-4 w-4" />
-              )}
-              Notify Users Without EmpId ({usersWithoutEmpId})
+              <UserPlus className="h-4 w-4" />
+              Create User
             </Button>
-          )}
+            {usersWithoutEmpId > 0 && (
+              <Button
+                onClick={handleNotifyMissingEmpId}
+                disabled={sendingNotifications}
+                variant="outline"
+                className="gap-2"
+              >
+                {sendingNotifications ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Bell className="h-4 w-4" />
+                )}
+                Notify Users Without EmpId ({usersWithoutEmpId})
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Stats */}
@@ -753,6 +825,89 @@ export default function AdminUsers() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Create User Dialog */}
+      <Dialog open={createUserOpen} onOpenChange={setCreateUserOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New User</DialogTitle>
+            <DialogDescription>
+              Enter the details for the new user. They will be able to login immediately.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name</Label>
+                <Input
+                  id="firstName"
+                  placeholder="John"
+                  value={newUserData.firstName}
+                  onChange={(e) => setNewUserData({ ...newUserData, firstName: e.target.value })}
+                  disabled={creatingUser}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last Name</Label>
+                <Input
+                  id="lastName"
+                  placeholder="Doe"
+                  value={newUserData.lastName}
+                  onChange={(e) => setNewUserData({ ...newUserData, lastName: e.target.value })}
+                  disabled={creatingUser}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="employeeId">Employee ID</Label>
+              <Input
+                id="employeeId"
+                placeholder="EMP001"
+                value={newUserData.employeeId}
+                onChange={(e) => setNewUserData({ ...newUserData, employeeId: e.target.value })}
+                disabled={creatingUser}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="john.doe@example.com"
+                value={newUserData.email}
+                onChange={(e) => setNewUserData({ ...newUserData, email: e.target.value })}
+                disabled={creatingUser}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="Min 6 characters"
+                value={newUserData.password}
+                onChange={(e) => setNewUserData({ ...newUserData, password: e.target.value })}
+                disabled={creatingUser}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateUserOpen(false)} disabled={creatingUser}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateUser} disabled={creatingUser}>
+              {creatingUser ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create User"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
