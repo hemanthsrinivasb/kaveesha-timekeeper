@@ -75,16 +75,26 @@ Deno.serve(async (req) => {
     // Use service role to update role
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Update or insert the role
-    const { error: updateError } = await supabaseAdmin
+    // First, delete existing role for this user
+    const { error: deleteError } = await supabaseAdmin
       .from("user_roles")
-      .upsert(
-        { user_id: userId, role: newRole },
-        { onConflict: "user_id" }
-      );
+      .delete()
+      .eq("user_id", userId);
 
-    if (updateError) {
-      return new Response(JSON.stringify({ error: updateError.message }), {
+    if (deleteError) {
+      return new Response(JSON.stringify({ error: deleteError.message }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Then insert the new role
+    const { error: insertError } = await supabaseAdmin
+      .from("user_roles")
+      .insert({ user_id: userId, role: newRole });
+
+    if (insertError) {
+      return new Response(JSON.stringify({ error: insertError.message }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

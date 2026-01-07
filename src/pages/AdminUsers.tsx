@@ -41,7 +41,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Search, Pencil, Trash2, Loader2, Users, Shield, Bell, ShieldPlus, IdCard } from "lucide-react";
+import { Search, Pencil, Trash2, Loader2, Users, Shield, Bell, ShieldPlus, ShieldMinus, IdCard } from "lucide-react";
 import { format } from "date-fns";
 import {
   Tooltip,
@@ -82,8 +82,9 @@ export default function AdminUsers() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingUser, setDeletingUser] = useState(false);
 
-  // Make admin state
-  const [makeAdminDialogOpen, setMakeAdminDialogOpen] = useState(false);
+  // Role management state
+  const [roleDialogOpen, setRoleDialogOpen] = useState(false);
+  const [roleAction, setRoleAction] = useState<"promote" | "demote">("promote");
   const [updatingRole, setUpdatingRole] = useState(false);
 
   // Edit employee ID state
@@ -259,19 +260,22 @@ export default function AdminUsers() {
     }
   };
 
-  // Make Admin handlers
-  const handleMakeAdmin = (targetUser: User) => {
+  // Role management handlers
+  const handleRoleChange = (targetUser: User, action: "promote" | "demote") => {
     setSelectedUser(targetUser);
-    setMakeAdminDialogOpen(true);
+    setRoleAction(action);
+    setRoleDialogOpen(true);
   };
 
-  const confirmMakeAdmin = async () => {
+  const confirmRoleChange = async () => {
     if (!selectedUser) return;
 
+    const newRole = roleAction === "promote" ? "admin" : "user";
+    
     setUpdatingRole(true);
     try {
       const { data, error } = await supabase.functions.invoke("admin-update-role", {
-        body: { userId: selectedUser.id, newRole: "admin" },
+        body: { userId: selectedUser.id, newRole },
         headers: {
           Authorization: `Bearer ${session?.access_token}`,
         },
@@ -280,8 +284,9 @@ export default function AdminUsers() {
       if (error) throw error;
       if (data.error) throw new Error(data.error);
 
-      toast.success(`${selectedUser.displayName || selectedUser.email} is now an admin`);
-      setMakeAdminDialogOpen(false);
+      const actionText = roleAction === "promote" ? "is now an admin" : "is no longer an admin";
+      toast.success(`${selectedUser.displayName || selectedUser.email} ${actionText}`);
+      setRoleDialogOpen(false);
       fetchUsers();
     } catch (error: any) {
       console.error("Error updating role:", error);
@@ -505,14 +510,14 @@ export default function AdminUsers() {
                         <TableCell>
                           <div className="flex justify-end gap-1">
                             <TooltipProvider>
-                              {/* Make Admin Button */}
-                              {u.role !== "admin" && (
+                              {/* Make Admin / Remove Admin Button */}
+                              {u.role !== "admin" ? (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button
                                       variant="ghost"
                                       size="icon"
-                                      onClick={() => handleMakeAdmin(u)}
+                                      onClick={() => handleRoleChange(u, "promote")}
                                       disabled={u.id === user?.id}
                                     >
                                       <ShieldPlus className="h-4 w-4 text-primary" />
@@ -522,7 +527,22 @@ export default function AdminUsers() {
                                     <p>Make Admin</p>
                                   </TooltipContent>
                                 </Tooltip>
-                              )}
+                              ) : u.id !== user?.id ? (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleRoleChange(u, "demote")}
+                                    >
+                                      <ShieldMinus className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Remove Admin</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              ) : null}
                               
                               {/* Edit Employee ID Button */}
                               <Tooltip>
@@ -698,29 +718,36 @@ export default function AdminUsers() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Make Admin Confirmation Dialog */}
-      <AlertDialog open={makeAdminDialogOpen} onOpenChange={setMakeAdminDialogOpen}>
+      {/* Role Change Confirmation Dialog */}
+      <AlertDialog open={roleDialogOpen} onOpenChange={setRoleDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Make User Admin</AlertDialogTitle>
+            <AlertDialogTitle>
+              {roleAction === "promote" ? "Make User Admin" : "Remove Admin Role"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to make {selectedUser?.displayName || selectedUser?.email} an admin?
-              Admins have full access to manage users, projects, and all timesheets.
+              {roleAction === "promote" 
+                ? `Are you sure you want to make ${selectedUser?.displayName || selectedUser?.email} an admin? Admins have full access to manage users, projects, and all timesheets.`
+                : `Are you sure you want to remove admin privileges from ${selectedUser?.displayName || selectedUser?.email}? They will become a regular user.`
+              }
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={updatingRole}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={confirmMakeAdmin}
+              onClick={confirmRoleChange}
               disabled={updatingRole}
+              className={roleAction === "demote" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
             >
               {updatingRole ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Updating...
                 </>
-              ) : (
+              ) : roleAction === "promote" ? (
                 "Make Admin"
+              ) : (
+                "Remove Admin"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
