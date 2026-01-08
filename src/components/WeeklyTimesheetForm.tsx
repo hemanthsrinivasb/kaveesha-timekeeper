@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Textarea } from "./ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Card, CardContent } from "./ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, Plus, Trash2, Save } from "lucide-react";
 import { ProjectSelect } from "./ProjectSelect";
 import { useProfile } from "@/hooks/useProfile";
 import { format, startOfWeek, endOfWeek, addDays, addWeeks, subWeeks } from "date-fns";
@@ -17,12 +16,20 @@ interface WeeklyEntry {
   hours: { [key: string]: number }; // day -> hours
 }
 
+interface SavedDraft {
+  entries: WeeklyEntry[];
+  weekStart: string;
+}
+
 interface WeeklyTimesheetFormProps {
   onSuccess?: () => void;
 }
 
+const DRAFT_STORAGE_KEY = 'timesheet_draft';
+
 export const WeeklyTimesheetForm = ({ onSuccess }: WeeklyTimesheetFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const { profile, loading: profileLoading } = useProfile();
   const [currentWeekStart, setCurrentWeekStart] = useState(() => 
     startOfWeek(new Date(), { weekStartsOn: 1 }) // Monday start
@@ -32,9 +39,60 @@ export const WeeklyTimesheetForm = ({ onSuccess }: WeeklyTimesheetFormProps) => 
     { id: crypto.randomUUID(), project: "", description: "", hours: {} }
   ]);
 
+  // Load saved draft on mount
+  useEffect(() => {
+    loadDraft();
+  }, []);
+
+  // Load draft when week changes
+  useEffect(() => {
+    loadDraft();
+  }, [currentWeekStart]);
+
+  const loadDraft = () => {
+    try {
+      const weekKey = format(currentWeekStart, "yyyy-MM-dd");
+      const savedData = localStorage.getItem(`${DRAFT_STORAGE_KEY}_${weekKey}`);
+      if (savedData) {
+        const draft: SavedDraft = JSON.parse(savedData);
+        if (draft.entries && draft.entries.length > 0) {
+          setEntries(draft.entries);
+          return;
+        }
+      }
+      // Reset to empty if no draft
+      setEntries([{ id: crypto.randomUUID(), project: "", description: "", hours: {} }]);
+    } catch (error) {
+      console.error("Error loading draft:", error);
+    }
+  };
+
+  const saveDraft = async () => {
+    setIsSaving(true);
+    try {
+      const weekKey = format(currentWeekStart, "yyyy-MM-dd");
+      const draft: SavedDraft = {
+        entries,
+        weekStart: weekKey,
+      };
+      localStorage.setItem(`${DRAFT_STORAGE_KEY}_${weekKey}`, JSON.stringify(draft));
+      toast.success("Draft saved successfully!");
+    } catch (error) {
+      console.error("Error saving draft:", error);
+      toast.error("Failed to save draft");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const clearDraft = () => {
+    const weekKey = format(currentWeekStart, "yyyy-MM-dd");
+    localStorage.removeItem(`${DRAFT_STORAGE_KEY}_${weekKey}`);
+  };
+
   // Generate week days
-  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
-  const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
+  const weekDays = Array.from({ length: 6 }, (_, i) => addDays(currentWeekStart, i)); // Mon-Sat
+  const weekEnd = addDays(currentWeekStart, 5); // Saturday
 
   const goToPreviousWeek = () => {
     setCurrentWeekStart(subWeeks(currentWeekStart, 1));
@@ -131,6 +189,9 @@ export const WeeklyTimesheetForm = ({ onSuccess }: WeeklyTimesheetFormProps) => 
 
       toast.success(`Successfully submitted ${timesheetEntries.length} timesheet entries!`);
       
+      // Clear draft after successful submission
+      clearDraft();
+      
       // Reset form
       setEntries([{ id: crypto.randomUUID(), project: "", description: "", hours: {} }]);
       
@@ -192,19 +253,19 @@ export const WeeklyTimesheetForm = ({ onSuccess }: WeeklyTimesheetFormProps) => 
       </div>
 
       {/* Timesheet Grid */}
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse">
+      <div className="overflow-x-auto -mx-4 px-4">
+        <table className="w-full border-collapse min-w-[800px]">
           <thead>
             <tr className="border-b">
-              <th className="text-left p-2 min-w-[200px]">Project</th>
-              <th className="text-left p-2 min-w-[150px]">Task Description</th>
+              <th className="text-left p-2 min-w-[180px]">Project</th>
+              <th className="text-left p-2 min-w-[140px]">Task Description</th>
               {weekDays.map(day => (
-                <th key={day.toISOString()} className="text-center p-2 min-w-[80px]">
+                <th key={day.toISOString()} className="text-center p-2 w-[70px]">
                   <div className="text-xs text-muted-foreground">{format(day, "EEE")}</div>
                   <div className="font-semibold">{format(day, "dd")}</div>
                 </th>
               ))}
-              <th className="text-center p-2 min-w-[80px]">Total</th>
+              <th className="text-center p-2 w-[60px]">Total</th>
               <th className="p-2 w-10"></th>
             </tr>
           </thead>
@@ -224,6 +285,7 @@ export const WeeklyTimesheetForm = ({ onSuccess }: WeeklyTimesheetFormProps) => 
                     value={entry.description}
                     onChange={(e) => updateEntry(entry.id, "description", e.target.value)}
                     disabled={isSubmitting}
+                    className="min-w-[120px]"
                   />
                 </td>
                 {weekDays.map(day => {
@@ -239,7 +301,7 @@ export const WeeklyTimesheetForm = ({ onSuccess }: WeeklyTimesheetFormProps) => 
                         value={entry.hours[dayKey] || ""}
                         onChange={(e) => updateHours(entry.id, dayKey, parseFloat(e.target.value) || 0)}
                         disabled={isSubmitting}
-                        className="text-center w-16"
+                        className="text-center w-[60px] px-1"
                       />
                     </td>
                   );
@@ -254,7 +316,7 @@ export const WeeklyTimesheetForm = ({ onSuccess }: WeeklyTimesheetFormProps) => 
                       size="icon"
                       onClick={() => removeEntry(entry.id)}
                       disabled={isSubmitting}
-                      className="text-destructive hover:text-destructive"
+                      className="text-destructive hover:text-destructive h-8 w-8"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -288,8 +350,26 @@ export const WeeklyTimesheetForm = ({ onSuccess }: WeeklyTimesheetFormProps) => 
         Add Time Entry
       </Button>
 
-      {/* Submit Button */}
-      <div className="flex justify-end gap-4">
+      {/* Save and Submit Buttons */}
+      <div className="flex flex-wrap justify-end gap-4">
+        <Button 
+          variant="outline"
+          onClick={saveDraft} 
+          disabled={isSaving || isSubmitting}
+          className="gap-2"
+        >
+          {isSaving ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className="h-4 w-4" />
+              Save Draft
+            </>
+          )}
+        </Button>
         <Button 
           onClick={onSubmit} 
           disabled={isSubmitting || missingProfile}
