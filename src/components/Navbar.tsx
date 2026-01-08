@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Moon, Sun, LogOut, Menu, X, BarChart3 } from "lucide-react";
 import { Button } from "./ui/button";
 import { useTheme } from "./ThemeProvider";
-import logo from "@/assets/kaveesha-logo.jpg";
+import logo from "@/assets/kaveesha-logo.png";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { NotificationBell } from "./NotificationBell";
