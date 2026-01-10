@@ -33,6 +33,7 @@ export const Navbar = () => {
 
   const adminLinks = [
     { to: "/", label: "Dashboard" },
+    { to: "/timesheet", label: "Timesheet" },
     { to: "/reports", label: "Reports" },
     { to: "/analytics", label: "Analytics" },
     { to: "/users", label: "Users" },
