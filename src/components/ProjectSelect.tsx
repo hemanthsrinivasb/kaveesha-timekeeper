@@ -38,8 +38,8 @@ export function ProjectSelect({ value, onValueChange, disabled, showAllProjects 
     if (!user) return;
     
     try {
-      // Admin or showAllProjects flag - show all active projects
-      if (role === 'admin' || showAllProjects) {
+      // Only show all projects when explicitly requested (for admin management pages)
+      if (showAllProjects) {
         const { data, error } = await supabase
           .from("projects")
           .select("id, name, description")
@@ -49,6 +49,7 @@ export function ProjectSelect({ value, onValueChange, disabled, showAllProjects 
         if (error) throw error;
         setProjects(data || []);
       } else {
+        // All users (including admins) see only their assigned projects for timesheet filling
         // Regular users - show only assigned projects
         const { data, error } = await supabase
           .from("project_assignments")
