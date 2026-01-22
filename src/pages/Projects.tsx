@@ -26,9 +26,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, Loader2, FolderOpen, UserPlus, Crown } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, FolderOpen, UserPlus, Crown, Shield } from "lucide-react";
 import { UserAssignment } from "@/components/UserAssignment";
 import { HODAssignment } from "@/components/HODAssignment";
+import { AdminAssignment } from "@/components/AdminAssignment";
 
 interface Project {
   id: string;
@@ -48,8 +49,10 @@ export default function Projects() {
   const [submitting, setSubmitting] = useState(false);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [hodDialogOpen, setHodDialogOpen] = useState(false);
+  const [adminDialogOpen, setAdminDialogOpen] = useState(false);
   const [selectedProjectForAssignment, setSelectedProjectForAssignment] = useState<Project | null>(null);
   const [selectedProjectForHod, setSelectedProjectForHod] = useState<Project | null>(null);
+  const [selectedProjectForAdmin, setSelectedProjectForAdmin] = useState<Project | null>(null);
   
   // Form state
   const [name, setName] = useState("");
@@ -117,6 +120,11 @@ export default function Projects() {
   const openHodDialog = (project: Project) => {
     setSelectedProjectForHod(project);
     setHodDialogOpen(true);
+  };
+
+  const openAdminDialog = (project: Project) => {
+    setSelectedProjectForAdmin(project);
+    setAdminDialogOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -335,6 +343,15 @@ export default function Projects() {
                             <Button
                               variant="ghost"
                               size="icon"
+                              onClick={() => openAdminDialog(project)}
+                              title="Assign Project Admins"
+                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-500/10"
+                            >
+                              <Shield className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               onClick={() => openHodDialog(project)}
                               title="Assign Head of Department"
                               className="text-amber-600 hover:text-amber-700 hover:bg-amber-500/10"
@@ -394,6 +411,16 @@ export default function Projects() {
             project={selectedProjectForHod}
             open={hodDialogOpen}
             onOpenChange={setHodDialogOpen}
+            onAssigned={fetchProjects}
+          />
+        )}
+
+        {/* Admin Assignment Dialog */}
+        {selectedProjectForAdmin && (
+          <AdminAssignment
+            project={selectedProjectForAdmin}
+            open={adminDialogOpen}
+            onOpenChange={setAdminDialogOpen}
             onAssigned={fetchProjects}
           />
         )}
