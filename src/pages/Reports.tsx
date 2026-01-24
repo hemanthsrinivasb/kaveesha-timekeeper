@@ -3,9 +3,10 @@ import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { FileSpreadsheet, FileText, Search, Trash2, CheckCircle, XCircle, Clock } from "lucide-react";
+import { FileSpreadsheet, FileText, Search, Trash2, CheckCircle, XCircle, Clock, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
@@ -19,6 +20,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type TimesheetStatus = "pending" | "approved" | "rejected";
 
@@ -34,6 +43,8 @@ export default function Reports() {
   const [filterProject, setFilterProject] = useState<string>("all");
   const [allProjects, setAllProjects] = useState<string[]>([]);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [editingEntry, setEditingEntry] = useState<any | null>(null);
+  const [editDescription, setEditDescription] = useState("");
 
   const isAdmin = role === "admin";
   const canAccessReports = isAdmin || isHod;
@@ -182,6 +193,34 @@ export default function Reports() {
     } catch (error) {
       console.error("Error deleting entry:", error);
       toast.error("Failed to delete entry");
+    }
+  };
+
+  const openEditDialog = (entry: any) => {
+    setEditingEntry(entry);
+    setEditDescription(entry.description || "");
+  };
+
+  const handleUpdateDescription = async () => {
+    if (!editingEntry) return;
+    
+    setProcessingId(editingEntry.id);
+    try {
+      const { error } = await supabase
+        .from("timesheets")
+        .update({ description: editDescription.trim() || null })
+        .eq("id", editingEntry.id);
+
+      if (error) throw error;
+      
+      toast.success("Description updated successfully");
+      setEditingEntry(null);
+      fetchTimesheets();
+    } catch (error) {
+      console.error("Error updating description:", error);
+      toast.error("Failed to update description");
+    } finally {
+      setProcessingId(null);
     }
   };
 
@@ -414,9 +453,20 @@ export default function Reports() {
                         </td>
                         <td className="p-3">{entry.project}</td>
                         <td className="p-3 max-w-[200px]">
-                          <span className="text-sm text-muted-foreground line-clamp-2" title={entry.description || ""}>
-                            {entry.description || "-"}
-                          </span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-sm text-muted-foreground line-clamp-2 flex-1" title={entry.description || ""}>
+                              {entry.description || "-"}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEditDialog(entry)}
+                              className="h-6 w-6 shrink-0 text-muted-foreground hover:text-primary"
+                              title="Edit description"
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </td>
                         <td className="p-3 text-right font-semibold text-primary">
                           {parseFloat(entry.hours).toFixed(1)}h
@@ -468,6 +518,39 @@ export default function Reports() {
             )}
           </CardContent>
         </Card>
+
+        {/* Edit Description Dialog */}
+        <Dialog open={!!editingEntry} onOpenChange={(open) => !open && setEditingEntry(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Edit Description</DialogTitle>
+              <DialogDescription>
+                Update the task description for this timesheet entry.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              {editingEntry && (
+                <div className="text-sm text-muted-foreground">
+                  <span className="font-medium">{editingEntry.name}</span> - {editingEntry.project} ({new Date(editingEntry.start_date).toLocaleDateString()})
+                </div>
+              )}
+              <Textarea
+                placeholder="Enter task description..."
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                rows={4}
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditingEntry(null)}>
+                Cancel
+              </Button>
+              <Button onClick={handleUpdateDescription} disabled={processingId === editingEntry?.id}>
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Footer */}
         <footer className="mt-12 pt-8 border-t border-border text-center text-sm text-muted-foreground">
