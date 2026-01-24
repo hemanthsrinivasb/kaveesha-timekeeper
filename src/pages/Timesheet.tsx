@@ -1,16 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Navbar } from "@/components/Navbar";
-import { TimesheetForm } from "@/components/TimesheetForm";
 import { WeeklyTimesheetForm } from "@/components/WeeklyTimesheetForm";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function Timesheet() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
-  const [activeTab, setActiveTab] = useState("weekly");
 
   useEffect(() => {
     if (!loading && !user) {
@@ -41,40 +38,17 @@ export default function Timesheet() {
             </p>
           </div>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="mb-6">
-              <TabsTrigger value="weekly">Weekly Entry</TabsTrigger>
-              <TabsTrigger value="daily">Single Entry</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="weekly">
-              <Card className="shadow-glow animate-slide-up">
-                <CardHeader>
-                  <CardTitle>Weekly Timesheet</CardTitle>
-                  <CardDescription>
-                    Enter your work hours for the entire week at once
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <WeeklyTimesheetForm onSuccess={() => navigate("/")} />
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="daily">
-              <Card className="shadow-glow animate-slide-up">
-                <CardHeader>
-                  <CardTitle>Single Entry</CardTitle>
-                  <CardDescription>
-                    Add individual timesheet entries one at a time
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <TimesheetForm onSuccess={() => navigate("/")} />
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+          <Card className="shadow-glow animate-slide-up">
+            <CardHeader>
+              <CardTitle>Weekly Timesheet</CardTitle>
+              <CardDescription>
+                Enter your work hours for the entire week at once
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <WeeklyTimesheetForm onSuccess={() => navigate("/")} />
+            </CardContent>
+          </Card>
         </div>
 
         {/* Footer */}

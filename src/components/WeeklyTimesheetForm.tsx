@@ -173,6 +173,7 @@ export const WeeklyTimesheetForm = ({ onSuccess }: WeeklyTimesheetFormProps) => 
               hours: hours,
               start_date: dayKey,
               end_date: dayKey,
+              description: entry.description || null,
             });
           }
         }
