@@ -206,6 +206,7 @@ export type Database = {
       timesheets: {
         Row: {
           created_at: string
+          description: string | null
           employee_id: string
           end_date: string
           hours: number
@@ -222,6 +223,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          description?: string | null
           employee_id: string
           end_date?: string
           hours: number
@@ -238,6 +240,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          description?: string | null
           employee_id?: string
           end_date?: string
           hours?: number

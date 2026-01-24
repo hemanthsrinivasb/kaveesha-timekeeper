@@ -219,6 +219,7 @@ export default function Reports() {
         Name: entry.name,
         "Employee ID": entry.employee_id,
         Project: entry.project,
+        Description: entry.description || "",
         Hours: parseFloat(entry.hours).toFixed(2),
         Status: entry.status.charAt(0).toUpperCase() + entry.status.slice(1),
       }))
@@ -240,13 +241,14 @@ export default function Reports() {
 
     autoTable(doc, {
       startY: 40,
-      head: [["Start Date", "End Date", "Name", "Employee ID", "Project", "Hours", "Status"]],
+      head: [["Start Date", "End Date", "Name", "Employee ID", "Project", "Description", "Hours", "Status"]],
       body: filteredTimesheets.map((entry) => [
         new Date(entry.start_date).toLocaleDateString(),
         new Date(entry.end_date).toLocaleDateString(),
         entry.name,
         entry.employee_id,
         entry.project,
+        entry.description || "",
         parseFloat(entry.hours).toFixed(2),
         entry.status.charAt(0).toUpperCase() + entry.status.slice(1),
       ]),
@@ -386,6 +388,7 @@ export default function Reports() {
                       <th className="text-left p-3 font-semibold">Dates</th>
                       <th className="text-left p-3 font-semibold">Employee</th>
                       <th className="text-left p-3 font-semibold">Project</th>
+                      <th className="text-left p-3 font-semibold max-w-[200px]">Description</th>
                       <th className="text-right p-3 font-semibold">Hours</th>
                       <th className="text-center p-3 font-semibold">Status</th>
                       <th className="text-center p-3 font-semibold">Actions</th>
@@ -410,6 +413,11 @@ export default function Reports() {
                           <div className="text-xs text-muted-foreground">{entry.employee_id}</div>
                         </td>
                         <td className="p-3">{entry.project}</td>
+                        <td className="p-3 max-w-[200px]">
+                          <span className="text-sm text-muted-foreground line-clamp-2" title={entry.description || ""}>
+                            {entry.description || "-"}
+                          </span>
+                        </td>
                         <td className="p-3 text-right font-semibold text-primary">
                           {parseFloat(entry.hours).toFixed(1)}h
                         </td>
