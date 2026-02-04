@@ -86,39 +86,18 @@ export default function Dashboard() {
 
   const fetchStats = async () => {
     try {
-      let query = supabase.from("timesheets").select("*");
-      
-      if (role !== 'admin' && user) {
-        query = query.eq('user_id', user.id);
-      }
-      
-      const { data: timesheets, error } = await query;
+      // Use server-side RPC function for accurate stats (avoids 1000 row limit)
+      const { data, error } = await supabase.rpc("get_dashboard_stats");
 
       if (error) throw error;
 
-      if (timesheets) {
-        const totalHours = timesheets.reduce(
-          (sum, entry) => sum + Number(entry.hours),
-          0
-        );
-        const uniqueProjects = new Set(timesheets.map((entry) => entry.project))
-          .size;
-
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        const thisWeekEntries = timesheets.filter(
-          (entry) => new Date(entry.start_date) >= weekAgo
-        );
-        const thisWeekHours = thisWeekEntries.reduce(
-          (sum, entry) => sum + Number(entry.hours),
-          0
-        );
-
+      if (data) {
+        const statsData = data as Record<string, unknown>;
         setStats({
-          totalHours,
-          totalProjects: uniqueProjects,
-          thisWeekHours,
-          totalEntries: timesheets.length,
+          totalHours: Number(statsData.total_hours) || 0,
+          totalProjects: Number(statsData.total_projects) || 0,
+          thisWeekHours: Number(statsData.this_week_hours) || 0,
+          totalEntries: Number(statsData.total_entries) || 0,
         });
       }
     } catch (error) {
