@@ -1,6 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { WeeklyTimesheetForm } from "@/components/WeeklyTimesheetForm";
+import { SubmittedTimesheets } from "@/components/SubmittedTimesheets";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -8,12 +9,18 @@ import { useAuth } from "@/hooks/useAuth";
 export default function Timesheet() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     if (!loading && !user) {
       navigate("/auth");
     }
   }, [user, loading, navigate]);
+
+  // Refresh submitted timesheets after successful submission
+  const handleSubmitSuccess = () => {
+    setRefreshKey(prev => prev + 1);
+  };
 
   if (loading) {
     return (
@@ -46,9 +53,12 @@ export default function Timesheet() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <WeeklyTimesheetForm onSuccess={() => navigate("/")} />
+              <WeeklyTimesheetForm onSuccess={handleSubmitSuccess} />
             </CardContent>
           </Card>
+
+          {/* Submitted Timesheets - Read Only */}
+          <SubmittedTimesheets key={refreshKey} />
         </div>
 
         {/* Footer */}

@@ -87,9 +87,15 @@ export default function Reports() {
 
   const fetchTimesheets = async () => {
     try {
+      // Calculate date range for last 30 days as default
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+
       let query = supabase
         .from("timesheets")
         .select("*")
+        .gte("start_date", thirtyDaysAgoStr) // Fetch last 30 days by default
         .order("created_at", { ascending: false });
 
       // For HOD (non-admin), only fetch timesheets for their projects
@@ -97,9 +103,13 @@ export default function Reports() {
         query = query.in("project", hodProjects);
       }
 
-      const { data, error } = await query;
+      // Remove any implicit limits by explicitly setting a high limit
+      // Supabase default is 1000 rows, this ensures we get all matching records
+      const { data, error, count } = await query.limit(10000);
 
       if (error) throw error;
+      
+      console.log(`Fetched ${data?.length || 0} timesheet entries`);
       setTimesheets(data || []);
       setFilteredTimesheets(data || []);
     } catch (error) {
