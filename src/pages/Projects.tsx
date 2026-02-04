@@ -26,7 +26,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, Loader2, FolderOpen, UserPlus, Crown } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, FolderOpen, UserPlus, Crown, Search } from "lucide-react";
 import { UserAssignment } from "@/components/UserAssignment";
 import { HODAssignment } from "@/components/HODAssignment";
 
@@ -42,6 +42,8 @@ export default function Projects() {
   const navigate = useNavigate();
   const { user, role, loading } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
@@ -81,6 +83,7 @@ export default function Projects() {
 
       if (error) throw error;
       setProjects(data || []);
+      setFilteredProjects(data || []);
     } catch (error) {
       console.error("Error fetching projects:", error);
       toast.error("Failed to load projects");
@@ -88,6 +91,21 @@ export default function Projects() {
       setLoadingProjects(false);
     }
   };
+
+  // Real-time search filtering
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      setFilteredProjects(projects);
+    } else {
+      const lowerSearch = searchTerm.toLowerCase();
+      setFilteredProjects(
+        projects.filter((p) =>
+          p.name.toLowerCase().includes(lowerSearch) ||
+          (p.description && p.description.toLowerCase().includes(lowerSearch))
+        )
+      );
+    }
+  }, [searchTerm, projects]);
 
   const resetForm = () => {
     setName("");
@@ -281,22 +299,38 @@ export default function Projects() {
 
         <Card className="animate-slide-up">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FolderOpen className="h-5 w-5" />
-              All Projects
-            </CardTitle>
-            <CardDescription>
-              {projects.length} project{projects.length !== 1 ? "s" : ""} total
-            </CardDescription>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <FolderOpen className="h-5 w-5" />
+                  All Projects
+                </CardTitle>
+                <CardDescription>
+                  {filteredProjects.length} of {projects.length} project{projects.length !== 1 ? "s" : ""} shown
+                </CardDescription>
+              </div>
+              {/* Search Bar */}
+              <div className="relative w-full md:w-64">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search projects..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {loadingProjects ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-primary" />
               </div>
-            ) : projects.length === 0 ? (
+            ) : filteredProjects.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                No projects found. Create your first project above.
+                {projects.length === 0 
+                  ? "No projects found. Create your first project above."
+                  : "No projects match your search."}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -311,7 +345,7 @@ export default function Projects() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {projects.map((project) => (
+                    {filteredProjects.map((project) => (
                       <TableRow key={project.id}>
                         <TableCell className="font-medium">{project.name}</TableCell>
                         <TableCell className="text-muted-foreground max-w-xs truncate">
