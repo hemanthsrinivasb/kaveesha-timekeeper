@@ -284,6 +284,7 @@ export type Database = {
     }
     Functions: {
       get_analytics_stats: { Args: never; Returns: Json }
+      get_dashboard_stats: { Args: { p_user_id?: string }; Returns: Json }
       get_employee_productivity: { Args: never; Returns: Json }
       get_project_distribution: { Args: never; Returns: Json }
       get_user_role: {
