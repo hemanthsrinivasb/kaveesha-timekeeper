@@ -87,15 +87,15 @@ export default function Reports() {
 
   const fetchTimesheets = async () => {
     try {
-      // Calculate date range for last 30 days as default
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+      // Calculate date range for last 60 days (2 months) as default
+      const sixtyDaysAgo = new Date();
+      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+      const sixtyDaysAgoStr = sixtyDaysAgo.toISOString().split('T')[0];
 
       let query = supabase
         .from("timesheets")
         .select("*")
-        .gte("start_date", thirtyDaysAgoStr) // Fetch last 30 days by default
+        .gte("start_date", sixtyDaysAgoStr) // Fetch last 60 days (2 months) by default
         .order("created_at", { ascending: false });
 
       // For HOD (non-admin), only fetch timesheets for their projects
