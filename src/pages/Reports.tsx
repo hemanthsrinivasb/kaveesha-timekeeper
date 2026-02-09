@@ -45,6 +45,7 @@ export default function Reports() {
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [editingEntry, setEditingEntry] = useState<any | null>(null);
   const [editDescription, setEditDescription] = useState("");
+  const [editHours, setEditHours] = useState("");
 
   const isAdmin = role === "admin";
   const canAccessReports = isAdmin || isHod;
@@ -209,6 +210,7 @@ export default function Reports() {
   const openEditDialog = (entry: any) => {
     setEditingEntry(entry);
     setEditDescription(entry.description || "");
+    setEditHours(parseFloat(entry.hours).toString());
   };
 
   const handleUpdateDescription = async () => {
@@ -216,9 +218,17 @@ export default function Reports() {
     
     setProcessingId(editingEntry.id);
     try {
+      const updatePayload: Record<string, any> = { description: editDescription.trim() || null };
+      // Allow hours editing only for pending entries
+      if (editingEntry.status === "pending" && editHours) {
+        const parsedHours = parseFloat(editHours);
+        if (!isNaN(parsedHours) && parsedHours >= 0) {
+          updatePayload.hours = parsedHours;
+        }
+      }
       const { error } = await supabase
         .from("timesheets")
-        .update({ description: editDescription.trim() || null })
+        .update(updatePayload)
         .eq("id", editingEntry.id);
 
       if (error) throw error;
@@ -261,18 +271,21 @@ export default function Reports() {
   };
 
   const exportToExcel = () => {
-    const worksheet = XLSX.utils.json_to_sheet(
-      filteredTimesheets.map((entry) => ({
-        "Start Date": new Date(entry.start_date).toLocaleDateString(),
-        "End Date": new Date(entry.end_date).toLocaleDateString(),
-        Name: entry.name,
-        "Employee ID": entry.employee_id,
-        Project: entry.project,
-        Description: entry.description || "",
-        Hours: parseFloat(entry.hours).toFixed(2),
-        Status: entry.status.charAt(0).toUpperCase() + entry.status.slice(1),
-      }))
-    );
+    const safeData = filteredTimesheets.map((entry) => ({
+      "Start Date": entry.start_date ? new Date(entry.start_date).toLocaleDateString() : "N/A",
+      "End Date": entry.end_date ? new Date(entry.end_date).toLocaleDateString() : "N/A",
+      Name: entry.name || "Unknown",
+      "Employee ID": entry.employee_id || "N/A",
+      Project: entry.project || "N/A",
+      Description: entry.description || "",
+      Hours: !isNaN(parseFloat(entry.hours)) ? parseFloat(entry.hours).toFixed(2) : "0.00",
+      Status: entry.status ? entry.status.charAt(0).toUpperCase() + entry.status.slice(1) : "Pending",
+    }));
+    if (safeData.length === 0) {
+      toast.info("No data to export");
+      return;
+    }
+    const worksheet = XLSX.utils.json_to_sheet(safeData);
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Timesheets");
@@ -288,18 +301,22 @@ export default function Reports() {
     doc.setFontSize(11);
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
 
+    if (filteredTimesheets.length === 0) {
+      toast.info("No data to export");
+      return;
+    }
     autoTable(doc, {
       startY: 40,
       head: [["Start Date", "End Date", "Name", "Employee ID", "Project", "Description", "Hours", "Status"]],
       body: filteredTimesheets.map((entry) => [
-        new Date(entry.start_date).toLocaleDateString(),
-        new Date(entry.end_date).toLocaleDateString(),
-        entry.name,
-        entry.employee_id,
-        entry.project,
+        entry.start_date ? new Date(entry.start_date).toLocaleDateString() : "N/A",
+        entry.end_date ? new Date(entry.end_date).toLocaleDateString() : "N/A",
+        entry.name || "Unknown",
+        entry.employee_id || "N/A",
+        entry.project || "N/A",
         entry.description || "",
-        parseFloat(entry.hours).toFixed(2),
-        entry.status.charAt(0).toUpperCase() + entry.status.slice(1),
+        !isNaN(parseFloat(entry.hours)) ? parseFloat(entry.hours).toFixed(2) : "0.00",
+        entry.status ? entry.status.charAt(0).toUpperCase() + entry.status.slice(1) : "Pending",
       ]),
       theme: "grid",
       headStyles: { fillColor: [220, 38, 38] },
@@ -533,9 +550,9 @@ export default function Reports() {
         <Dialog open={!!editingEntry} onOpenChange={(open) => !open && setEditingEntry(null)}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Edit Description</DialogTitle>
+              <DialogTitle>Edit Timesheet Entry</DialogTitle>
               <DialogDescription>
-                Update the task description for this timesheet entry.
+                Update description{editingEntry?.status === "pending" ? " and hours" : ""} for this entry.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
@@ -544,12 +561,30 @@ export default function Reports() {
                   <span className="font-medium">{editingEntry.name}</span> - {editingEntry.project} ({new Date(editingEntry.start_date).toLocaleDateString()})
                 </div>
               )}
-              <Textarea
-                placeholder="Enter task description..."
-                value={editDescription}
-                onChange={(e) => setEditDescription(e.target.value)}
-                rows={4}
-              />
+              {/* Hours field - only editable for pending entries */}
+              {editingEntry?.status === "pending" && (
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Hours</label>
+                  <Input
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    max="24"
+                    value={editHours}
+                    onChange={(e) => setEditHours(e.target.value)}
+                    placeholder="Enter hours..."
+                  />
+                </div>
+              )}
+              <div>
+                <label className="text-sm font-medium mb-1 block">Description</label>
+                <Textarea
+                  placeholder="Enter task description..."
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  rows={4}
+                />
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setEditingEntry(null)}>
