@@ -97,7 +97,7 @@ export default function Reports() {
         .from("timesheets")
         .select("*")
         .gte("start_date", sixtyDaysAgoStr) // Fetch last 60 days (2 months) by default
-        .order("created_at", { ascending: false });
+        .order("start_date", { ascending: false });
 
       // For HOD (non-admin), only fetch timesheets for their projects
       if (!isAdmin && isHod && hodProjects.length > 0) {
@@ -346,6 +346,20 @@ export default function Reports() {
 
   const pendingCount = timesheets.filter(t => t.status === "pending").length;
 
+  // Consolidated approval summary: group pending entries by employee
+  const pendingByEmployee = timesheets
+    .filter(t => t.status === "pending")
+    .reduce((acc, t) => {
+      const key = t.employee_id;
+      if (!acc[key]) {
+        acc[key] = { name: t.name, employee_id: t.employee_id, count: 0, hours: 0 };
+      }
+      acc[key].count += 1;
+      acc[key].hours += parseFloat(t.hours) || 0;
+      return acc;
+    }, {} as Record<string, { name: string; employee_id: string; count: number; hours: number }>);
+  const pendingEmployees = Object.values(pendingByEmployee).sort((a: any, b: any) => b.count - a.count) as Array<{ name: string; employee_id: string; count: number; hours: number }>;
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -433,6 +447,46 @@ export default function Reports() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Consolidated Approval Summary */}
+        {pendingEmployees.length > 0 && (
+          <Card className="mb-6 animate-slide-up">
+            <CardHeader>
+              <CardTitle>Pending Approval Summary</CardTitle>
+              <CardDescription>
+                Employees with pending timesheet entries requiring approval
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left p-2 font-semibold">Employee</th>
+                      <th className="text-left p-2 font-semibold">Employee ID</th>
+                      <th className="text-right p-2 font-semibold">Pending Entries</th>
+                      <th className="text-right p-2 font-semibold">Pending Hours</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingEmployees.map((emp) => (
+                      <tr key={emp.employee_id} className="border-b border-border hover:bg-muted/50">
+                        <td className="p-2 font-medium">{emp.name}</td>
+                        <td className="p-2 text-muted-foreground">{emp.employee_id}</td>
+                        <td className="p-2 text-right">
+                          <Badge className="bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20">
+                            {emp.count}
+                          </Badge>
+                        </td>
+                        <td className="p-2 text-right font-medium">{emp.hours.toFixed(1)}h</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="animate-slide-up">
           <CardHeader>

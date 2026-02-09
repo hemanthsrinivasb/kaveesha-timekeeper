@@ -90,9 +90,9 @@ export const WeeklyTimesheetForm = ({ onSuccess }: WeeklyTimesheetFormProps) => 
     localStorage.removeItem(`${DRAFT_STORAGE_KEY}_${weekKey}`);
   };
 
-  // Generate week days
-  const weekDays = Array.from({ length: 6 }, (_, i) => addDays(currentWeekStart, i)); // Mon-Sat
-  const weekEnd = addDays(currentWeekStart, 5); // Saturday
+  // Generate week days (Mon-Sun, 7 days)
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i)); // Mon-Sun
+  const weekEnd = addDays(currentWeekStart, 6); // Sunday
 
   const goToPreviousWeek = () => {
     setCurrentWeekStart(subWeeks(currentWeekStart, 1));
@@ -144,8 +144,13 @@ export const WeeklyTimesheetForm = ({ onSuccess }: WeeklyTimesheetFormProps) => 
       return;
     }
 
-    // Validate entries
-    const validEntries = entries.filter(e => e.project && getTotalHours(e) > 0);
+    // Validate entries - allow 0 hours for LEAVE/HOLIDAY projects
+    const leaveProjects = ['LEAVE', 'HOLIDAY'];
+    const validEntries = entries.filter(e => {
+      if (!e.project) return false;
+      if (leaveProjects.includes(e.project.toUpperCase())) return true; // Allow 0 hours for leave/holiday
+      return getTotalHours(e) > 0;
+    });
     if (validEntries.length === 0) {
       toast.error("Please add at least one project with hours");
       return;
@@ -161,10 +166,13 @@ export const WeeklyTimesheetForm = ({ onSuccess }: WeeklyTimesheetFormProps) => 
       }
 
       // Create individual timesheet entries for each day with hours
+      // For LEAVE/HOLIDAY, allow 0-hour entries
+      const leaveProjectNames = ['LEAVE', 'HOLIDAY'];
       const timesheetEntries = [];
       for (const entry of validEntries) {
+        const isLeaveType = leaveProjectNames.includes(entry.project.toUpperCase());
         for (const [dayKey, hours] of Object.entries(entry.hours)) {
-          if (hours > 0) {
+          if (hours > 0 || (isLeaveType && hours === 0)) {
             timesheetEntries.push({
               user_id: user.id,
               name: profile.display_name,
@@ -176,6 +184,10 @@ export const WeeklyTimesheetForm = ({ onSuccess }: WeeklyTimesheetFormProps) => 
               description: entry.description || null,
             });
           }
+        }
+        // For leave/holiday with no day entries at all, still allow if they selected days
+        if (isLeaveType && Object.keys(entry.hours).length === 0) {
+          // Skip - user needs to mark at least one day
         }
       }
 
