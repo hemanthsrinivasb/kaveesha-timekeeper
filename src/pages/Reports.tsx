@@ -339,12 +339,13 @@ export default function Reports() {
     }
     autoTable(doc, {
       startY: 40,
-      head: [["Start Date", "End Date", "Name", "Employee ID", "Project", "Description", "Hours", "Status"]],
+      head: [["Start Date", "End Date", "Name", "Employee ID", "Department", "Project", "Description", "Hours", "Status"]],
       body: filteredTimesheets.map((entry) => [
         entry.start_date ? new Date(entry.start_date).toLocaleDateString() : "N/A",
         entry.end_date ? new Date(entry.end_date).toLocaleDateString() : "N/A",
         entry.name || "Unknown",
         entry.employee_id || "N/A",
+        employeeDepartments[entry.employee_id] || "N/A",
         entry.project || "N/A",
         entry.description || "",
         !isNaN(parseFloat(entry.hours)) ? parseFloat(entry.hours).toFixed(2) : "0.00",
