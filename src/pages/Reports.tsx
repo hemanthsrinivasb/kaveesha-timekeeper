@@ -75,6 +75,29 @@ export default function Reports() {
     filterTimesheets();
   }, [searchTerm, filterStartDate, filterEndDate, filterStatus, filterProject, filterDepartment, timesheets, employeeDepartments]);
 
+  const fetchDepartments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("employee_id, department")
+        .not("department", "is", null);
+
+      if (error) throw error;
+      const deptMap: Record<string, string> = {};
+      const deptSet = new Set<string>();
+      (data || []).forEach((p: any) => {
+        if (p.employee_id && p.department) {
+          deptMap[p.employee_id] = p.department;
+          deptSet.add(p.department);
+        }
+      });
+      setEmployeeDepartments(deptMap);
+      setAllDepartments(Array.from(deptSet).sort());
+    } catch (error) {
+      console.error("Error fetching departments:", error);
+    }
+  };
+
   const fetchAllProjects = async () => {
     try {
       const { data, error } = await supabase
