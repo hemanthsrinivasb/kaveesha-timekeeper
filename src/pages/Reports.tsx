@@ -307,6 +307,7 @@ export default function Reports() {
       "End Date": entry.end_date ? new Date(entry.end_date).toLocaleDateString() : "N/A",
       Name: entry.name || "Unknown",
       "Employee ID": entry.employee_id || "N/A",
+      Department: employeeDepartments[entry.employee_id] || "N/A",
       Project: entry.project || "N/A",
       Description: entry.description || "",
       Hours: !isNaN(parseFloat(entry.hours)) ? parseFloat(entry.hours).toFixed(2) : "0.00",
