@@ -73,7 +73,7 @@ export default function Reports() {
 
   useEffect(() => {
     filterTimesheets();
-  }, [searchTerm, filterStartDate, filterEndDate, filterStatus, filterProject, timesheets]);
+  }, [searchTerm, filterStartDate, filterEndDate, filterStatus, filterProject, filterDepartment, timesheets, employeeDepartments]);
 
   const fetchAllProjects = async () => {
     try {
