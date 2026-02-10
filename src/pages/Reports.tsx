@@ -41,7 +41,10 @@ export default function Reports() {
   const [filterEndDate, setFilterEndDate] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterProject, setFilterProject] = useState<string>("all");
+  const [filterDepartment, setFilterDepartment] = useState<string>("all");
   const [allProjects, setAllProjects] = useState<string[]>([]);
+  const [allDepartments, setAllDepartments] = useState<string[]>([]);
+  const [employeeDepartments, setEmployeeDepartments] = useState<Record<string, string>>({});
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [editingEntry, setEditingEntry] = useState<any | null>(null);
   const [editDescription, setEditDescription] = useState("");
@@ -64,12 +67,36 @@ export default function Reports() {
     if (user && canAccessReports) {
       fetchTimesheets();
       fetchAllProjects();
+      fetchDepartments();
     }
   }, [user, role, isHod]);
 
   useEffect(() => {
     filterTimesheets();
-  }, [searchTerm, filterStartDate, filterEndDate, filterStatus, filterProject, timesheets]);
+  }, [searchTerm, filterStartDate, filterEndDate, filterStatus, filterProject, filterDepartment, timesheets, employeeDepartments]);
+
+  const fetchDepartments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("employee_id, department")
+        .not("department", "is", null);
+
+      if (error) throw error;
+      const deptMap: Record<string, string> = {};
+      const deptSet = new Set<string>();
+      (data || []).forEach((p: any) => {
+        if (p.employee_id && p.department) {
+          deptMap[p.employee_id] = p.department;
+          deptSet.add(p.department);
+        }
+      });
+      setEmployeeDepartments(deptMap);
+      setAllDepartments(Array.from(deptSet).sort());
+    } catch (error) {
+      console.error("Error fetching departments:", error);
+    }
+  };
 
   const fetchAllProjects = async () => {
     try {
@@ -145,6 +172,10 @@ export default function Reports() {
 
     if (filterProject !== "all") {
       filtered = filtered.filter((entry) => entry.project === filterProject);
+    }
+
+    if (filterDepartment !== "all") {
+      filtered = filtered.filter((entry) => employeeDepartments[entry.employee_id] === filterDepartment);
     }
 
     setFilteredTimesheets(filtered);
@@ -276,6 +307,7 @@ export default function Reports() {
       "End Date": entry.end_date ? new Date(entry.end_date).toLocaleDateString() : "N/A",
       Name: entry.name || "Unknown",
       "Employee ID": entry.employee_id || "N/A",
+      Department: employeeDepartments[entry.employee_id] || "N/A",
       Project: entry.project || "N/A",
       Description: entry.description || "",
       Hours: !isNaN(parseFloat(entry.hours)) ? parseFloat(entry.hours).toFixed(2) : "0.00",
@@ -307,12 +339,13 @@ export default function Reports() {
     }
     autoTable(doc, {
       startY: 40,
-      head: [["Start Date", "End Date", "Name", "Employee ID", "Project", "Description", "Hours", "Status"]],
+      head: [["Start Date", "End Date", "Name", "Employee ID", "Department", "Project", "Description", "Hours", "Status"]],
       body: filteredTimesheets.map((entry) => [
         entry.start_date ? new Date(entry.start_date).toLocaleDateString() : "N/A",
         entry.end_date ? new Date(entry.end_date).toLocaleDateString() : "N/A",
         entry.name || "Unknown",
         entry.employee_id || "N/A",
+        employeeDepartments[entry.employee_id] || "N/A",
         entry.project || "N/A",
         entry.description || "",
         !isNaN(parseFloat(entry.hours)) ? parseFloat(entry.hours).toFixed(2) : "0.00",
@@ -387,7 +420,7 @@ export default function Reports() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -429,6 +462,19 @@ export default function Reports() {
                   {filterableProjects.map((project) => (
                     <SelectItem key={project} value={project}>
                       {project}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={filterDepartment} onValueChange={setFilterDepartment}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by department" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Departments</SelectItem>
+                  {allDepartments.map((dept) => (
+                    <SelectItem key={dept} value={dept}>
+                      {dept}
                     </SelectItem>
                   ))}
                 </SelectContent>
