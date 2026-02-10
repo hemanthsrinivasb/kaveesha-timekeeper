@@ -174,6 +174,10 @@ export default function Reports() {
       filtered = filtered.filter((entry) => entry.project === filterProject);
     }
 
+    if (filterDepartment !== "all") {
+      filtered = filtered.filter((entry) => employeeDepartments[entry.employee_id] === filterDepartment);
+    }
+
     setFilteredTimesheets(filtered);
   };
 
