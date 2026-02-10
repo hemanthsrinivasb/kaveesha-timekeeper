@@ -67,6 +67,7 @@ export default function Reports() {
     if (user && canAccessReports) {
       fetchTimesheets();
       fetchAllProjects();
+      fetchDepartments();
     }
   }, [user, role, isHod]);
 
