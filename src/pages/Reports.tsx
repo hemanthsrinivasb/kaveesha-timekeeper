@@ -41,7 +41,10 @@ export default function Reports() {
   const [filterEndDate, setFilterEndDate] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterProject, setFilterProject] = useState<string>("all");
+  const [filterDepartment, setFilterDepartment] = useState<string>("all");
   const [allProjects, setAllProjects] = useState<string[]>([]);
+  const [allDepartments, setAllDepartments] = useState<string[]>([]);
+  const [employeeDepartments, setEmployeeDepartments] = useState<Record<string, string>>({});
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [editingEntry, setEditingEntry] = useState<any | null>(null);
   const [editDescription, setEditDescription] = useState("");
